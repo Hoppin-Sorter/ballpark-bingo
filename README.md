@@ -25,11 +25,15 @@ real client. Phase stays `IDLE` until the round controls exist.
 
 ## Deploy
 
-Railway auto-detects Node and runs `npm start`. The server reads `process.env.PORT`
-and binds `0.0.0.0`.
+**Live:** https://ballpark-bingo-production.up.railway.app
 
-**Do not use a free tier that spins down** — a 50-second cold start mid-round
-kills the game (§9).
+Railway deploys from `main` on every push. It auto-detects Node and runs
+`npm start`; the server reads `process.env.PORT` and binds `0.0.0.0`.
 
-Freeze pushes to `main` on Sunday. Auto-deploy means a bad push takes the app
-down mid-game.
+State is in memory, so **every deploy wipes all players, cards and scores.**
+That is fine on Saturday and fatal on Sunday.
+
+- **Freeze pushes to `main` once it works Saturday night.** A push mid-game
+  resets everyone's card with no undo.
+- Do not use a tier that spins down. A 50-second cold start mid-inning kills
+  the game (spec §9).
