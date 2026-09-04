@@ -150,17 +150,61 @@ app.get('/state/:playerId', (req, res) => {
   res.json(snapshot(playerId));
 });
 
+app.post('/mark', (req, res) => {
+  const { playerId, index, value, round } = req.body ?? {};
+
+  const player = game.players[playerId];
+  if (!player) return res.status(404).json({ error: 'unknown player', rejoin: true });
+
+  if (!Number.isInteger(index) || index < 0 || index >= CARD_SIZE) {
+    return res.status(400).json({ error: 'index out of range' });
+  }
+  if (typeof value !== 'boolean') {
+    return res.status(400).json({ error: 'value must be a boolean' });
+  }
+
+  // -------------------------------------------------------------------------
+  // STALE-ROUND GUARD GOES HERE — step 6, yours to write (§4).
+  //
+  // The failure: a player taps a square just as somebody presses Start Next
+  // Inning. Their tap was aimed at a card that no longer exists, but it
+  // arrives after the rollover, so without a guard the server writes it onto
+  // the *fresh* card at the same index. The player sees a square light up
+  // that they never marked, on a board they have never seen.
+  //
+  // `round` is already on the wire from the client for exactly this. Compare
+  // it to game.round and reject the mismatch — the client's next poll will
+  // correct its own UI, because the snapshot is authoritative.
+  //
+  // Test it deliberately: hold a thumb on a square while someone else presses
+  // Start Next Inning, and confirm the mark bounces instead of landing.
+  // -------------------------------------------------------------------------
+  void round;
+
+  // Phase gate is step 5: marking should only be legal while phase === OPEN.
+  // Until the phase machine exists, phase never leaves IDLE and gating here
+  // would make the grid untappable.
+
+  // Only bump when something actually changed, so a repeat tap of the same
+  // value doesn't wake every other client's poll for nothing.
+  if (player.marks[index] !== value) {
+    player.marks[index] = value;
+    bump();
+  }
+
+  res.json(snapshot(playerId));
+});
+
 // ---------------------------------------------------------------------------
 // Not built yet — Saturday, in this order (§7):
-//   POST /mark           steps 4+6, carries `round`, rejects stale writes
 //   POST /accuse         step 8, resolves against state as it stands
 //   POST /next-inning    step 7, rejects if phase is OPEN
 //   POST /force-resolve  step 7, confirm step on the client
-// findBingo is imported and ready for /mark to call.
+// findBingo is imported and ready: step 5 calls it from /mark to move the
+// phase to RESOLVED, since bingo is what ends a round.
 // ---------------------------------------------------------------------------
 
 void findBingo;
-void CARD_SIZE;
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {

@@ -2,99 +2,124 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Ballpark Bingo — deploy smoke test</title>
-<!--
-  THROWAWAY. This page exists only to prove step 3: that the deploy is
-  reachable from a phone on cellular, that /join works, and that the
-  ?since= poll short-circuits. The real client is step 4 (Saturday morning)
-  and should replace this file wholesale. No marking, no round controls.
--->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#10151b">
+<title>Ballpark Bingo</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
-    margin: 0; padding: 16px 14px calc(24px + env(safe-area-inset-bottom));
+    margin: 0; padding: 14px 12px calc(28px + env(safe-area-inset-bottom));
     font: 16px/1.4 -apple-system, system-ui, sans-serif;
     background: #10151b; color: #e8edf2;
+    -webkit-user-select: none; user-select: none;
   }
-  h1 { font-size: 17px; margin: 0 0 2px; letter-spacing: .01em; }
-  .sub { font-size: 12px; color: #7c8b9a; margin-bottom: 14px; }
-  .bar {
-    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-    font-size: 12px; color: #9fb0c0; margin-bottom: 14px;
-  }
-  .pill { background: #1b232c; border-radius: 999px; padding: 4px 10px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  h1 { font-size: 18px; margin: 0 0 10px; letter-spacing: .01em; }
+
+  .bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+         font-size: 11px; color: #9fb0c0; margin-bottom: 12px; }
+  .pill { background: #1b232c; border-radius: 999px; padding: 4px 9px; white-space: nowrap; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
   .live .dot { background: #35c56a; } .live { color: #35c56a; }
   .down .dot { background: #e2584d; } .down { color: #e2584d; }
-  input, button {
-    font: inherit; border-radius: 10px; border: 1px solid #2b3742;
-  }
-  input { background: #171f27; color: #e8edf2; padding: 12px; width: 100%; }
-  button {
-    background: #2f6fd0; color: #fff; border-color: #2f6fd0;
-    padding: 13px 16px; width: 100%; margin-top: 10px; font-weight: 600;
-  }
-  button:active { background: #2559a8; }
-  #grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 4px 0 18px; }
+  .syncing .dot { background: #dcc26a; } .syncing { color: #dcc26a; }
+
+  input, button { font: inherit; border-radius: 10px; border: 1px solid #2b3742; }
+  input { background: #171f27; color: #e8edf2; padding: 13px; width: 100%; }
+  #go { background: #2f6fd0; color: #fff; border-color: #2f6fd0;
+        padding: 14px; width: 100%; margin-top: 10px; font-weight: 600; }
+
+  #grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 16px; }
   .sq {
-    aspect-ratio: 1; border-radius: 8px; background: #1b232c;
-    padding: 4px; font-size: 9.5px; line-height: 1.15; color: #cdd9e4;
+    position: relative; aspect-ratio: 1; border-radius: 8px;
+    background: #1b232c; border: 1px solid #263039; color: #cdd9e4;
+    padding: 3px; line-height: 1.1; text-align: center; overflow: hidden;
     display: flex; align-items: center; justify-content: center;
-    text-align: center; overflow: hidden; border: 1px solid #222c36;
+    touch-action: manipulation; cursor: pointer; font-family: inherit;
+    transition: background .12s, border-color .12s;
   }
-  .sq.free { background: #243447; color: #7fb0ea; font-weight: 700; font-size: 11px; }
-  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
-       color: #7c8b9a; margin: 18px 0 7px; font-weight: 600; }
+  .sq:active { transform: scale(.96); }
+  .sq.on { background: #1d4430; border-color: #35c56a; color: #ffffff; font-weight: 600; }
+  .sq .t { position: relative; z-index: 1; }
+  .sq.on::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .45; z-index: 0;
+    background:
+      linear-gradient(to top left, transparent 46.5%, #4fe08a 46.5%, #4fe08a 53.5%, transparent 53.5%),
+      linear-gradient(to top right, transparent 46.5%, #4fe08a 46.5%, #4fe08a 53.5%, transparent 53.5%);
+  }
+  .sq.pending { border-style: dashed; border-color: #dcc26a; }
+  .sq.free { background: #243447; color: #7fb0ea; font-weight: 700; font-size: 11px; cursor: default; }
+  .sq.reverted { animation: revert .7s ease; }
+  @keyframes revert {
+    0%, 100% { box-shadow: none; }
+    25%, 75% { box-shadow: inset 0 0 0 3px #e2584d; }
+  }
+
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+       color: #7c8b9a; margin: 16px 0 7px; font-weight: 600; }
   .row { display: flex; justify-content: space-between; align-items: center;
-         padding: 9px 11px; background: #171f27; border-radius: 8px; margin-bottom: 5px; }
-  .badge { font-size: 10px; font-weight: 700; letter-spacing: .05em;
-           padding: 3px 8px; border-radius: 999px; }
+         padding: 9px 11px; background: #171f27; border-radius: 8px; margin-bottom: 4px; font-size: 14px; }
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 3px 8px; border-radius: 999px; }
   .COLD { background: #23313d; color: #8fa6ba; }
   .WARM { background: #3b3620; color: #dcc26a; }
   .HOT { background: #46301d; color: #f0a35e; }
   .BLAZING { background: #4d2020; color: #ff7a6b; }
   .hide { display: none; }
-  .note { font-size: 11px; color: #62727f; margin-top: 20px; }
+  .note { font-size: 11px; color: #62727f; margin-top: 18px; line-height: 1.5; }
 </style>
 </head>
 <body>
 
 <h1>Ballpark Bingo</h1>
-<div class="sub">deploy smoke test — step 3</div>
 
 <div id="join">
-  <input id="name" placeholder="Your name" maxlength="20" autocomplete="off">
+  <input id="name" placeholder="Your name" maxlength="20" autocomplete="off" autocapitalize="words">
   <button id="go">Join</button>
 </div>
 
 <div id="game" class="hide">
   <div class="bar">
     <span id="conn" class="pill live"><span class="dot"></span>live</span>
-    <span class="pill">v<span id="ver">0</span></span>
     <span class="pill">inning <span id="round">0</span></span>
     <span class="pill" id="phase">IDLE</span>
-    <span class="pill" id="polls">0 polls</span>
+    <span class="pill hide" id="queue"></span>
   </div>
 
-  <h2>Your card</h2>
   <div id="grid"></div>
 
   <h2>Players</h2>
   <div id="players"></div>
 
-  <div class="note">
-    No marking yet — that's step 4. If this grid rendered on your phone with
-    wifi off, step 3 is done.
+  <div class="note" id="note">
+    Marking is live. Rounds are not — the phase machine and Start Next Inning
+    are steps 5 and 7, so the inning stays at 0 for now.
   </div>
 </div>
 
 <script>
+'use strict';
 const $ = (id) => document.getElementById(id);
-let playerId = localStorage.getItem('bb.playerId');
-let lastVersion = -1;
-let polls = 0;
 
+// --- client state ----------------------------------------------------------
+// `serverMarks` is the truth. `pending` is what this phone believes it just
+// did but the server has not confirmed. What you see is server + pending
+// laid on top; when the server disagrees, the overlay is dropped and the
+// square visibly snaps back.
+let playerId = localStorage.getItem('bb.playerId');
+let snap = null;
+let serverMarks = [];
+const pending = new Map(); // cardIndex -> { value, seq, sending }
+let seq = 0;
+let lastVersion = -1;
+let cells = null;
+let polling = false;
+
+function effectiveMarks() {
+  const m = serverMarks.slice();
+  for (const [i, p] of pending) m[i] = p.value;
+  return m;
+}
+
+// --- joining ---------------------------------------------------------------
 async function join() {
   const name = $('name').value.trim();
   if (!name) return;
@@ -105,8 +130,8 @@ async function join() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name }),
     });
-    if (!r.ok) throw new Error((await r.json()).error || 'join failed');
     const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'join failed');
     playerId = data.playerId;
     localStorage.setItem('bb.playerId', playerId);
     start(data.snapshot);
@@ -116,78 +141,185 @@ async function join() {
   }
 }
 
-function start(snap) {
+function start(first) {
   $('join').classList.add('hide');
   $('game').classList.remove('hide');
-  render(snap);
-  setInterval(poll, 3000);
+  buildGrid();
+  applySnapshot(first);
+  if (!polling) { polling = true; setInterval(poll, 3000); }
 }
 
+function handleGone() {
+  localStorage.removeItem('bb.playerId');
+  location.reload();
+}
+
+// --- grid ------------------------------------------------------------------
+function fontFor(text) {
+  if (text.length <= 14) return '11px';
+  if (text.length <= 24) return '10px';
+  if (text.length <= 40) return '9px';
+  return '8px';
+}
+
+function buildGrid() {
+  const grid = $('grid');
+  grid.innerHTML = '';
+  cells = new Array(24);
+  for (let cell = 0; cell < 25; cell++) {
+    const el = document.createElement('button');
+    if (cell === 12) {
+      el.className = 'sq free';
+      el.textContent = 'FREE';
+      el.disabled = true;
+      grid.appendChild(el);
+      continue;
+    }
+    const index = cell < 12 ? cell : cell - 1;
+    el.className = 'sq';
+    const label = document.createElement('span');
+    label.className = 't';
+    el.appendChild(label);
+    el.addEventListener('click', () => tap(index));
+    grid.appendChild(el);
+    el._label = label;
+    cells[index] = el;
+  }
+}
+
+// --- optimistic marking ----------------------------------------------------
+function tap(index) {
+  const next = !effectiveMarks()[index];
+  pending.set(index, { value: next, seq: ++seq, sending: false });
+  paint();            // immediate, before the network knows anything
+  sendMark(index);
+}
+
+async function sendMark(index) {
+  const p = pending.get(index);
+  if (!p || p.sending) return;
+  p.sending = true;
+
+  try {
+    const r = await fetch('/mark', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ playerId, index, value: p.value, round: snap.round }),
+    });
+    if (r.status === 404) return handleGone();
+
+    const body = await r.json();
+    const before = effectiveMarks();
+
+    // Whether the server agreed or refused, this attempt is resolved: drop the
+    // optimistic value and let the authoritative state show through.
+    if (pending.get(index) === p) pending.delete(index);
+
+    if (r.ok) applySnapshot(body, before);
+    else { paint(); flashIfChanged(before); }
+
+    // The fetch succeeded, so we are online. Say so now rather than letting the
+    // pill read "syncing" until the next poll three seconds from now.
+    if (!pending.size) setConn("live");
+  } catch {
+    // Network died. Keep the optimistic value and re-send on the next poll,
+    // so a dead spot in the stands doesn't silently eat a mark.
+    p.sending = false;
+    setConn('down');
+  }
+}
+
+function retryPending() {
+  for (const [index, p] of pending) if (!p.sending) sendMark(index);
+}
+
+// --- polling ---------------------------------------------------------------
 async function poll() {
   try {
     const r = await fetch(`/state/${playerId}?since=${lastVersion}`);
-    if (r.status === 404) { // server restarted, our id is gone
-      localStorage.removeItem('bb.playerId');
-      location.reload();
-      return;
-    }
+    if (r.status === 404) return handleGone();
     const data = await r.json();
-    polls++;
-    $('polls').textContent = polls + ' polls';
-    setConn(true);
-    if (data.changed === false) return; // nothing moved — this is the win
-    render(data);
+    if (data.changed !== false) applySnapshot(data);
+    setConn(pending.size ? 'syncing' : 'live');
+    retryPending();
   } catch {
-    setConn(false);
+    setConn('down');
   }
 }
 
-function setConn(ok) {
-  const el = $('conn');
-  el.className = 'pill ' + (ok ? 'live' : 'down');
-  el.innerHTML = '<span class="dot"></span>' + (ok ? 'live' : 'offline');
+// --- rendering -------------------------------------------------------------
+function applySnapshot(next, beforeDisplay) {
+  const before = beforeDisplay || (snap ? effectiveMarks() : null);
+  snap = next;
+  serverMarks = next.marks;
+  lastVersion = next.version;
+  paint();
+  if (before) flashIfChanged(before);
 }
 
-function render(s) {
-  lastVersion = s.version;
-  $('ver').textContent = s.version;
-  $('round').textContent = s.round;
-  $('phase').textContent = s.phase;
-
-  const grid = $('grid');
-  grid.innerHTML = '';
-  for (let cell = 0; cell < 25; cell++) {
-    const d = document.createElement('div');
-    if (cell === 12) {
-      d.className = 'sq free';
-      d.textContent = 'FREE';
-    } else {
-      d.className = 'sq';
-      d.textContent = s.card[cell < 12 ? cell : cell - 1].text;
+function flashIfChanged(before) {
+  const after = effectiveMarks();
+  for (let i = 0; i < after.length; i++) {
+    if (before[i] !== after[i] && cells[i]) {
+      cells[i].classList.remove('reverted');
+      void cells[i].offsetWidth; // restart the animation
+      cells[i].classList.add('reverted');
     }
-    grid.appendChild(d);
+  }
+}
+
+function paint() {
+  if (!snap || !cells) return;
+  $('round').textContent = snap.round;
+  $('phase').textContent = snap.phase;
+
+  const marks = effectiveMarks();
+  for (let i = 0; i < 24; i++) {
+    const el = cells[i];
+    const text = snap.card[i].text;
+    if (el.dataset.text !== text) {
+      el._label.textContent = text;
+      el.dataset.text = text;
+      el.style.fontSize = fontFor(text);
+    }
+    el.classList.toggle('on', !!marks[i]);
+    el.classList.toggle('pending', pending.has(i));
   }
 
-  $('players').innerHTML = s.players.map((p) =>
-    `<div class="row"><span>${escapeHtml(p.name)}${p.isYou ? ' (you)' : ''}</span>` +
+  const q = $('queue');
+  if (pending.size) {
+    q.textContent = pending.size + ' unsent';
+    q.classList.remove('hide');
+  } else {
+    q.classList.add('hide');
+  }
+
+  $('players').innerHTML = snap.players.map((p) =>
+    `<div class="row"><span>${esc(p.name)}${p.isYou ? ' (you)' : ''}</span>` +
     `<span class="badge ${p.badge}">${p.badge}</span></div>`
   ).join('');
 }
 
-function escapeHtml(str) {
-  return str.replace(/[&<>"']/g, (c) =>
+function setConn(kind) {
+  const el = $('conn');
+  el.className = 'pill ' + kind;
+  el.innerHTML = '<span class="dot"></span>' +
+    (kind === 'live' ? 'live' : kind === 'syncing' ? 'syncing' : 'offline');
+}
+
+function esc(s) {
+  return s.replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// --- boot ------------------------------------------------------------------
 $('go').addEventListener('click', join);
 $('name').addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
 
-// Returning to a live session after a reload.
 if (playerId) {
-  fetch(`/state/${playerId}?since=-1`).then((r) => {
-    if (!r.ok) { localStorage.removeItem('bb.playerId'); return; }
-    return r.json().then(start);
-  }).catch(() => {});
+  fetch(`/state/${playerId}?since=-1`)
+    .then((r) => (r.ok ? r.json().then(start) : localStorage.removeItem('bb.playerId')))
+    .catch(() => {});
 }
 </script>
 </body>
