@@ -11,7 +11,7 @@ npm start          # http://localhost:3000
 npm test           # bingo geometry + card generation
 ```
 
-## Built so far — spec §7 steps 1-5 and 7
+## Built so far — spec §7 steps 1-5, 7 and 8
 
 | File | What |
 |---|---|
@@ -27,7 +27,7 @@ npm test           # bingo geometry + card generation
 | `GET /state/:playerId?since=N` | done |
 | `POST /mark` | done, **minus the stale-round guard** |
 | `POST /next-inning` | done, refuses while `phase === OPEN` |
-| `POST /accuse` | step 8 |
+| `POST /accuse` | done, **minus the stale-round guard** |
 | `POST /force-resolve` | done, refuses outside `OPEN`, confirm step on the client |
 
 The phase machine:
@@ -45,7 +45,8 @@ IDLE ──next-inning──▶ OPEN ──bingo──▶ RESOLVED
 - **The stale-round guard in `/mark`** — deliberately unwritten, marked in
   place. The bug is live and reproducible: POST a `/mark` with an old `round`
   while a newer round is open and it lands on the fresh card.
-- Accusations (step 8), heat layer (step 11), anonymized feed (step 10).
+- The anonymized feed is written server-side but not yet rendered (step 10).
+- Square heat layer (step 11).
 - **Write the square pool.** Keep each square under ~60 characters; measured
   on a 375px phone, longer text clips inside a cell.
 

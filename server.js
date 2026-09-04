@@ -291,10 +291,65 @@ app.post("/force-resolve", (req, res) => {
   res.json({ ok: true, round: game.round, phase: game.phase, version: game.version });
 });
 
+app.post('/accuse', (req, res) => {
+  const { playerId, targetId, round } = req.body ?? {};
+
+  const accuser = game.players[playerId];
+  if (!accuser) return res.status(404).json({ error: 'unknown player', rejoin: true });
+
+  // Phase first. This is also the ruling for an accusation that lands the
+  // instant somebody bingos (§3): the bingo already flipped the phase, so the
+  // late accusation is refused here rather than resolving against a dead round.
+  if (game.phase !== PHASE.OPEN) {
+    return res.status(409).json({ error: 'round is not open', phase: game.phase });
+  }
+
+  const target = game.players[targetId];
+  if (!target) return res.status(400).json({ error: 'unknown target' });
+  if (targetId === playerId) {
+    return res.status(400).json({ error: 'you cannot accuse yourself' });
+  }
+  if (accuser.accusationUsed) {
+    return res.status(409).json({ error: 'accusation already spent this round' });
+  }
+
+  // The stale-round guard belongs here too — §4 says every /mark and /accuse
+  // carries the client's round. Same three lines as the block in /mark above.
+  void round;
+
+  // Resolved against state as it stands the moment this request arrives (§4).
+  // Node handles requests in arrival order, so two accusations in the same tick
+  // resolve one after the other, the second seeing whatever the first did.
+  //
+  // Ties count as correct for every player at the top (§3). Losing your shot on
+  // a technicality when two people are level is infuriating, so be generous.
+  //
+  // With nobody marked yet the whole room is tied at zero, so the accusation is
+  // technically correct and wipes an empty card. That is the "wasted shot" §3
+  // describes — it costs the accuser their one shot and achieves nothing.
+  const lead = Math.max(...Object.values(game.players).map(markCount));
+  const correct = markCount(target) === lead;
+
+  accuser.accusationUsed = true;
+
+  // Sabotage, not a second win condition (§3). A correct call knocks the
+  // frontrunner back; it wins the accuser nothing directly.
+  const wiped = correct ? target : accuser;
+  wiped.card = dealCard(game.squarePool);
+  wiped.marks = freshMarks();
+
+  // Named accuser, never a named target (§3). Naming the target would clear
+  // that person for the whole room for free — one player spends their shot and
+  // everybody benefits. Anonymized, a miss tells you only that a shot was fired.
+  pushFeed(`${accuser.name} accused someone and got it ${correct ? 'right!' : 'wrong.'}`);
+  bump();
+
+  res.json({ ...snapshot(playerId), accusation: { correct, wipedYou: !correct } });
+});
+
 // ---------------------------------------------------------------------------
-// Not built yet (§7):
-//   POST /accuse   step 8, resolves against state as it stands, wipes the
-//                  target on a hit and the accuser on a miss
+// Everything in §7 is now built except the stale-round guard (step 6), which
+// is marked in place in /mark and /accuse.
 // ---------------------------------------------------------------------------
 
 const PORT = process.env.PORT || 3000;

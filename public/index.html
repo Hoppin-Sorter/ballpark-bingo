@@ -75,6 +75,21 @@
   .WARM { background: #3b3620; color: #dcc26a; }
   .HOT { background: #46301d; color: #f0a35e; }
   .BLAZING { background: #4d2020; color: #ff7a6b; }
+  .ctrl.accuse { background: #2a2136; border-color: #4a3a63; color: #c9b3ea; margin-top: 8px; }
+  #accusePanel.panel { margin-bottom: 8px; }
+  .accuseRow {
+    width: 100%; display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 11px; margin-bottom: 4px; font-size: 14px; font-family: inherit;
+    background: #1d1830; border: 1px solid #3a2f52; color: #e8edf2;
+    border-radius: 8px; touch-action: manipulation; text-align: left;
+  }
+  .accuseRow.armed { background: #5a2a7a; border-color: #a86fd6; color: #fff; font-weight: 600; }
+  #accuseResult { border-radius: 10px; padding: 13px; margin-bottom: 8px;
+                  font-size: 14px; text-align: center; font-weight: 600; }
+  #accuseResult.hit { background: #1d4430; border: 1px solid #4fe08a; color: #d8ffe8; }
+  #accuseResult.miss { background: #4a1f1b; border: 1px solid #e2584d; color: #ffd8d3; }
+  #accuseResult.wiped { background: #3a2418; border: 1px solid #f0a35e; color: #ffd9b0; }
+  .spent { font-size: 10px; color: #8a7bb0; margin-left: 6px; }
   #controls { margin-top: 18px; }
   .ctrl { width: 100%; padding: 15px; font-weight: 600; margin-bottom: 8px;
           border-radius: 10px; touch-action: manipulation; font-family: inherit; }
@@ -110,6 +125,10 @@
   <h2>Players</h2>
   <div id="players"></div>
 
+  <div id="accuseResult" class="hide"></div>
+  <button id="accuseBtn" class="ctrl accuse"></button>
+  <div id="accusePanel" class="hide"></div>
+
   <h2>Round control</h2>
   <div id="controls">
     <button id="nextInning" class="ctrl primary"></button>
@@ -134,6 +153,7 @@ const pending = new Map(); // cardIndex -> { value, seq, sending }
 let seq = 0;
 let lastVersion = -1;
 let lastRound = null;
+let lastCardIds = null;
 let cells = null;
 let polling = false;
 
@@ -279,8 +299,21 @@ function applySnapshot(next, beforeDisplay) {
   // A rollover invalidates anything this phone still had in flight — those
   // taps were aimed at a card that no longer exists. Dropping them here is the
   // client half; the server half is the stale-round guard in /mark.
-  if (lastRound !== null && next.round !== lastRound) pending.clear();
+  if (lastRound !== null && next.round !== lastRound) {
+    pending.clear();
+    accuseResult = null;
+    wipedNotice = false;
+  } else if (lastCardIds && next.card.map((c) => c.id).join(',') !== lastCardIds && !applyingOwnCall) {
+    // The card was replaced without the round changing. Only an accusation
+    // does that, so somebody called you — which you can see and nobody else can.
+    // This supersedes the result of our own earlier call: it is newer news,
+    // and otherwise a player who accused early would never learn they were hit.
+    wipedNotice = true;
+    accuseResult = null;
+    pending.clear();
+  }
   lastRound = next.round;
+  lastCardIds = next.card.map((c) => c.id).join(',');
 
   const before = beforeDisplay || (snap ? effectiveMarks() : null);
   snap = next;
@@ -310,6 +343,7 @@ function paint() {
   $('grid').classList.toggle('locked', !open);
   $('grid').classList.toggle('dim', snap.phase === 'IDLE');
   renderBanner();
+  renderAccuse();
   renderControls();
 
   const marks = effectiveMarks();
@@ -338,7 +372,7 @@ function paint() {
 
   $('players').innerHTML = snap.players.map((p) =>
     `<div class="row"><span>${esc(p.name)}${p.isYou ? ' (you)' : ''}` +
-    `${p.roundWins ? `<span class="wins">${p.roundWins}W</span>` : ''}</span>` +
+    `${p.roundWins ? `<span class="wins">${p.roundWins}W</span>` : ''}${p.accusationUsed ? '<span class="spent">shot spent</span>' : ''}</span>` +
     `<span class="badge ${p.badge}">${p.badge}</span></div>`
   ).join('');
 }
@@ -373,6 +407,105 @@ function renderBanner() {
       `<div class="bs">Inning ${snap.round} is over.</div>`;
   }
 }
+
+// --- accusation ------------------------------------------------------------
+// One shot per player per round (§3). Sabotage, not a second win condition:
+// a correct call knocks the frontrunner back and wins the accuser nothing.
+let panelOpen = false;
+let armedTarget = null;
+let accuseTimer = null;
+let accuseResult = null;  // { correct, wipedYou } from our own call
+let wipedNotice = false;  // our card was replaced by somebody else's call
+let applyingOwnCall = false;
+
+function disarmAccuse() {
+  armedTarget = null;
+  clearTimeout(accuseTimer);
+}
+
+async function sendAccuse(targetId) {
+  disarmAccuse();
+  panelOpen = false;
+  try {
+    const r = await fetch('/accuse', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ playerId, targetId, round: snap.round }),
+    });
+    if (r.status === 404) return handleGone();
+    const body = await r.json();
+    if (r.ok) {
+      accuseResult = body.accusation;
+      wipedNotice = false;
+      applyingOwnCall = true;
+      applySnapshot(body);
+      applyingOwnCall = false;
+    } else {
+      await poll();   // refused; the fresh snapshot explains why
+    }
+  } catch {
+    setConn('down');
+  }
+}
+
+function renderAccuse() {
+  const btn = $('accuseBtn');
+  const panel = $('accusePanel');
+  const spent = snap.you.accusationUsed;
+  const usable = isOpen() && !spent;
+
+  btn.disabled = !usable;
+  if (!usable) { panelOpen = false; disarmAccuse(); }
+  btn.textContent = spent ? 'Accusation spent'
+    : panelOpen ? 'Never mind'
+    : 'Call the leader';
+
+  if (!panelOpen) {
+    panel.className = 'hide';
+  } else {
+    panel.className = 'panel';
+    const others = snap.players.filter((p) => !p.isYou);
+    panel.innerHTML = others.length
+      ? others.map((p) => {
+          const armed = armedTarget === p.id;
+          const label = armed ? 'Tap again to accuse ' + esc(p.name) : esc(p.name);
+          return '<button class="accuseRow' + (armed ? ' armed' : '') + '" data-id="' + p.id + '">' +
+            '<span>' + label + '</span>' +
+            '<span class="badge ' + p.badge + '">' + p.badge + '</span></button>';
+        }).join('')
+      : '<div class="note">Nobody else has joined yet.</div>';
+  }
+
+  const box = $('accuseResult');
+  if (accuseResult) {
+    box.className = accuseResult.correct ? 'hit' : 'miss';
+    box.textContent = accuseResult.correct
+      ? 'Right. Their card is gone, and only you know whose.'
+      : 'Wrong. Your card is gone.';
+  } else if (wipedNotice) {
+    box.className = 'wiped';
+    box.textContent = 'Your card was wiped. Somebody called you.';
+  } else {
+    box.className = 'hide';
+  }
+}
+
+$('accuseBtn').addEventListener('click', () => {
+  panelOpen = !panelOpen;
+  disarmAccuse();
+  paint();
+});
+
+$('accusePanel').addEventListener('click', (e) => {
+  const row = e.target.closest('.accuseRow');
+  if (!row) return;
+  const id = row.dataset.id;
+  if (armedTarget === id) return sendAccuse(id);   // confirm step (§6)
+  armedTarget = id;
+  clearTimeout(accuseTimer);
+  accuseTimer = setTimeout(() => { armedTarget = null; paint(); }, 4000);
+  paint();
+});
 
 /**
  * Anyone can roll the round — no host page, no key (§5). The state machine
