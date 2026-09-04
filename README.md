@@ -11,17 +11,45 @@ npm start          # http://localhost:3000
 npm test           # bingo geometry + card generation
 ```
 
-## Built so far — spec §7 steps 1-3
+## Built so far — spec §7 steps 1-5
 
 | File | What |
 |---|---|
-| `server.js` | State object, version counter, `/join`, `/state/:playerId?since=N` |
+| `server.js` | State, version counter, phase machine, all endpoints below |
 | `bingo.js` | Card geometry, `findBingo`, `dealCard` |
 | `squares.js` | Starter pool, 32 squares — **rewrite Saturday night (§8)** |
-| `public/index.html` | Throwaway deploy smoke test — step 4 replaces it |
+| `public/index.html` | The client: grid, optimistic marking, poll loop, phase UI |
+| `test-bingo.js` | 12 tests over bingo geometry and card generation |
 
-Not built yet: `/mark`, `/accuse`, `/next-inning`, `/force-resolve`, and the
-real client. Phase stays `IDLE` until the round controls exist.
+| Endpoint | State |
+|---|---|
+| `POST /join` | done |
+| `GET /state/:playerId?since=N` | done |
+| `POST /mark` | done, **minus the stale-round guard** |
+| `POST /next-inning` | done, refuses while `phase === OPEN` |
+| `POST /accuse` | step 8 |
+| `POST /force-resolve` | step 7 |
+
+The phase machine:
+
+```
+IDLE ──next-inning──▶ OPEN ──bingo──▶ RESOLVED
+                       ▲                  │
+                       └───next-inning────┘
+```
+
+`OPEN ▶ OPEN` is refused, which is what makes a host key unnecessary (§5).
+
+### Still to do
+
+- **The stale-round guard in `/mark`** — deliberately unwritten, marked in
+  place. The bug is live and reproducible: POST a `/mark` with an old `round`
+  while a newer round is open and it lands on the fresh card.
+- Round-control buttons and Force Resolve (step 7). Until they exist, start an
+  inning with `curl -X POST <url>/next-inning`.
+- Accusations (step 8), heat layer (step 11), anonymized feed (step 10).
+- **Write the square pool.** Keep each square under ~60 characters; measured
+  on a 375px phone, longer text clips inside a cell.
 
 ## Deploy
 

@@ -28,7 +28,17 @@
   #go { background: #2f6fd0; color: #fff; border-color: #2f6fd0;
         padding: 14px; width: 100%; margin-top: 10px; font-weight: 600; }
 
+  /* Phase banner. Silent during OPEN so the grid gets the whole screen. */
+  #banner { border-radius: 12px; padding: 16px 14px; margin-bottom: 13px; text-align: center; }
+  #banner.idle { background: #1b232c; color: #9fb0c0; }
+  #banner.resolved { background: #3a2418; border: 1px solid #f0a35e; color: #ffd9b0; }
+  #banner.resolved.mine { background: #1d4430; border-color: #4fe08a; color: #d8ffe8; }
+  .bt { font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+  .bs { font-size: 13px; margin-top: 6px; opacity: .85; }
+
   #grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 16px; }
+  #grid.locked { pointer-events: none; }
+  #grid.dim { opacity: .5; }
   .sq {
     position: relative; aspect-ratio: 1; border-radius: 8px;
     background: #1b232c; border: 1px solid #263039; color: #cdd9e4;
@@ -38,8 +48,8 @@
     transition: background .12s, border-color .12s;
   }
   .sq:active { transform: scale(.96); }
-  .sq.on { background: #1d4430; border-color: #35c56a; color: #ffffff; font-weight: 600; }
   .sq .t { position: relative; z-index: 1; }
+  .sq.on { background: #1d4430; border-color: #35c56a; color: #ffffff; font-weight: 600; }
   .sq.on::after {
     content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .45; z-index: 0;
     background:
@@ -47,6 +57,7 @@
       linear-gradient(to top right, transparent 46.5%, #4fe08a 46.5%, #4fe08a 53.5%, transparent 53.5%);
   }
   .sq.pending { border-style: dashed; border-color: #dcc26a; }
+  .sq.win { border-color: #ffd166; box-shadow: 0 0 0 2px #ffd166; }
   .sq.free { background: #243447; color: #7fb0ea; font-weight: 700; font-size: 11px; cursor: default; }
   .sq.reverted { animation: revert .7s ease; }
   @keyframes revert {
@@ -58,6 +69,7 @@
        color: #7c8b9a; margin: 16px 0 7px; font-weight: 600; }
   .row { display: flex; justify-content: space-between; align-items: center;
          padding: 9px 11px; background: #171f27; border-radius: 8px; margin-bottom: 4px; font-size: 14px; }
+  .wins { font-size: 11px; color: #7c8b9a; margin-left: 6px; }
   .badge { font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 3px 8px; border-radius: 999px; }
   .COLD { background: #23313d; color: #8fa6ba; }
   .WARM { background: #3b3620; color: #dcc26a; }
@@ -65,6 +77,7 @@
   .BLAZING { background: #4d2020; color: #ff7a6b; }
   .hide { display: none; }
   .note { font-size: 11px; color: #62727f; margin-top: 18px; line-height: 1.5; }
+  code { font-size: 11px; color: #8fa6ba; }
 </style>
 </head>
 <body>
@@ -84,14 +97,15 @@
     <span class="pill hide" id="queue"></span>
   </div>
 
+  <div id="banner" class="hide"></div>
   <div id="grid"></div>
 
   <h2>Players</h2>
   <div id="players"></div>
 
-  <div class="note" id="note">
-    Marking is live. Rounds are not — the phase machine and Start Next Inning
-    are steps 5 and 7, so the inning stays at 0 for now.
+  <div class="note">
+    Round controls are step 7. Until the buttons exist, start an inning with
+    <code>POST /next-inning</code>.
   </div>
 </div>
 
@@ -110,6 +124,7 @@ let serverMarks = [];
 const pending = new Map(); // cardIndex -> { value, seq, sending }
 let seq = 0;
 let lastVersion = -1;
+let lastRound = null;
 let cells = null;
 let polling = false;
 
@@ -118,6 +133,8 @@ function effectiveMarks() {
   for (const [i, p] of pending) m[i] = p.value;
   return m;
 }
+
+const isOpen = () => snap && snap.phase === 'OPEN';
 
 // --- joining ---------------------------------------------------------------
 async function join() {
@@ -189,6 +206,7 @@ function buildGrid() {
 
 // --- optimistic marking ----------------------------------------------------
 function tap(index) {
+  if (!isOpen()) return; // the server refuses too; this just avoids the round trip
   const next = !effectiveMarks()[index];
   pending.set(index, { value: next, seq: ++seq, sending: false });
   paint();            // immediate, before the network knows anything
@@ -220,7 +238,7 @@ async function sendMark(index) {
 
     // The fetch succeeded, so we are online. Say so now rather than letting the
     // pill read "syncing" until the next poll three seconds from now.
-    if (!pending.size) setConn("live");
+    if (!pending.size) setConn('live');
   } catch {
     // Network died. Keep the optimistic value and re-send on the next poll,
     // so a dead spot in the stands doesn't silently eat a mark.
@@ -249,6 +267,12 @@ async function poll() {
 
 // --- rendering -------------------------------------------------------------
 function applySnapshot(next, beforeDisplay) {
+  // A rollover invalidates anything this phone still had in flight — those
+  // taps were aimed at a card that no longer exists. Dropping them here is the
+  // client half; the server half is the stale-round guard in /mark.
+  if (lastRound !== null && next.round !== lastRound) pending.clear();
+  lastRound = next.round;
+
   const before = beforeDisplay || (snap ? effectiveMarks() : null);
   snap = next;
   serverMarks = next.marks;
@@ -273,7 +297,14 @@ function paint() {
   $('round').textContent = snap.round;
   $('phase').textContent = snap.phase;
 
+  const open = isOpen();
+  $('grid').classList.toggle('locked', !open);
+  $('grid').classList.toggle('dim', snap.phase === 'IDLE');
+  renderBanner();
+
   const marks = effectiveMarks();
+  const winLine = snap.winner && snap.winner.isYou ? snap.winner.line : null;
+
   for (let i = 0; i < 24; i++) {
     const el = cells[i];
     const text = snap.card[i].text;
@@ -284,6 +315,7 @@ function paint() {
     }
     el.classList.toggle('on', !!marks[i]);
     el.classList.toggle('pending', pending.has(i));
+    el.classList.toggle('win', !!winLine && winLine.includes(i));
   }
 
   const q = $('queue');
@@ -295,9 +327,41 @@ function paint() {
   }
 
   $('players').innerHTML = snap.players.map((p) =>
-    `<div class="row"><span>${esc(p.name)}${p.isYou ? ' (you)' : ''}</span>` +
+    `<div class="row"><span>${esc(p.name)}${p.isYou ? ' (you)' : ''}` +
+    `${p.roundWins ? `<span class="wins">${p.roundWins}W</span>` : ''}</span>` +
     `<span class="badge ${p.badge}">${p.badge}</span></div>`
   ).join('');
+}
+
+/**
+ * The phase machine is the whole UI (§6). OPEN says nothing so the grid gets
+ * the screen; RESOLVED is deliberately loud, because it is the cue to put the
+ * phone down and argue about the call.
+ */
+function renderBanner() {
+  const b = $('banner');
+  const w = snap.winner;
+
+  if (snap.phase === 'OPEN') { b.className = 'hide'; return; }
+
+  if (snap.phase === 'IDLE') {
+    b.className = 'idle';
+    b.innerHTML = '<div class="bt">No inning open</div>' +
+      '<div class="bs">Waiting for someone to start inning 1.</div>';
+    return;
+  }
+
+  b.className = 'resolved' + (w && w.isYou ? ' mine' : '');
+  if (!w) {
+    b.innerHTML = `<div class="bt">Push</div>` +
+      `<div class="bs">Inning ${snap.round} ended with no bingo.</div>`;
+  } else if (w.isYou) {
+    b.innerHTML = `<div class="bt">BINGO</div>` +
+      `<div class="bs">You took inning ${snap.round}. ${snap.you.roundWins} on the day.</div>`;
+  } else {
+    b.innerHTML = `<div class="bt">${esc(w.name)} got bingo</div>` +
+      `<div class="bs">Inning ${snap.round} is over.</div>`;
+  }
 }
 
 function setConn(kind) {
