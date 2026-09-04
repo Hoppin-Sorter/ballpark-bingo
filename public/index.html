@@ -97,6 +97,18 @@
   .ctrl.danger { background: #241a1a; border-color: #4d302e; color: #d08b84; }
   .ctrl.danger.armed { background: #8f2b22; border-color: #e2584d; color: #fff; }
   .ctrl:disabled { opacity: .3; }
+  #feed { max-height: 240px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .fe { display: flex; gap: 9px; align-items: baseline;
+        padding: 9px 11px; margin-bottom: 4px; border-radius: 8px;
+        background: #171f27; border-left: 3px solid #2b3742; font-size: 13px; }
+  .fe.hit { border-left-color: #4fe08a; }
+  .fe.miss { border-left-color: #e2584d; }
+  .fe.bingo { border-left-color: #ffd166; }
+  .fe.push { border-left-color: #7c8b9a; }
+  .fe.open { border-left-color: #2f6fd0; color: #9fb0c0; }
+  .fe .ft { flex: 1; }
+  .fe .fm { font-size: 10px; color: #62727f; white-space: nowrap; }
+  .feedEmpty { font-size: 12px; color: #62727f; padding: 10px 2px; }
   .hide { display: none; }
   .note { font-size: 11px; color: #62727f; margin-top: 18px; line-height: 1.5; }
   code { font-size: 11px; color: #8fa6ba; }
@@ -135,6 +147,9 @@
     <button id="forceResolve" class="ctrl danger">Force Resolve</button>
     <div class="note" id="ctrlNote"></div>
   </div>
+
+  <h2>Feed</h2>
+  <div id="feed"></div>
 </div>
 
 <script>
@@ -288,6 +303,7 @@ async function poll() {
     const data = await r.json();
     if (data.changed !== false) applySnapshot(data);
     setConn(pending.size ? 'syncing' : 'live');
+    if (snap) renderFeed();   // ages drift even when nothing else moves
     retryPending();
   } catch {
     setConn('down');
@@ -312,6 +328,7 @@ function applySnapshot(next, beforeDisplay) {
     accuseResult = null;
     pending.clear();
   }
+  if (typeof next.now === 'number') serverOffset = Date.now() - next.now;
   lastRound = next.round;
   lastCardIds = next.card.map((c) => c.id).join(',');
 
@@ -345,6 +362,7 @@ function paint() {
   renderBanner();
   renderAccuse();
   renderControls();
+  renderFeed();
 
   const marks = effectiveMarks();
   const winLine = snap.winner && snap.winner.isYou ? snap.winner.line : null;
@@ -406,6 +424,34 @@ function renderBanner() {
     b.innerHTML = `<div class="bt">${esc(w.name)} got bingo</div>` +
       `<div class="bs">Inning ${snap.round} is over.</div>`;
   }
+}
+
+// --- feed ------------------------------------------------------------------
+// Anonymized on the target (§3): the accuser is named, the target never is.
+// A named target would clear that person for the whole room for free.
+let serverOffset = 0;   // clientNow - serverNow, so ages survive a wrong phone clock
+
+function ago(ts) {
+  const age = Date.now() - serverOffset - ts;
+  if (age < 10000) return 'just now';
+  if (age < 60000) return Math.round(age / 1000) + 's ago';
+  if (age < 3600000) return Math.round(age / 60000) + 'm ago';
+  return Math.round(age / 3600000) + 'h ago';
+}
+
+function renderFeed() {
+  const el = $('feed');
+  if (!snap || !snap.feed.length) {
+    el.innerHTML = '<div class="feedEmpty">Nothing has happened yet.</div>';
+    return;
+  }
+  // Newest first: on a phone the latest line should not need a scroll.
+  el.innerHTML = snap.feed.slice().reverse().map((f) =>
+    '<div class="fe ' + (f.kind || '') + '">' +
+      '<span class="ft">' + esc(f.text) + '</span>' +
+      '<span class="fm">inning ' + f.round + ' · ' + ago(f.ts) + '</span>' +
+    '</div>'
+  ).join('');
 }
 
 // --- accusation ------------------------------------------------------------

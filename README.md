@@ -11,7 +11,7 @@ npm start          # http://localhost:3000
 npm test           # bingo geometry + card generation
 ```
 
-## Built so far — spec §7 steps 1-5, 7 and 8
+## Built so far — spec §7 steps 1-5 and 7-10
 
 | File | What |
 |---|---|
@@ -42,10 +42,9 @@ IDLE ──next-inning──▶ OPEN ──bingo──▶ RESOLVED
 
 ### Still to do
 
-- **The stale-round guard in `/mark`** — deliberately unwritten, marked in
-  place. The bug is live and reproducible: POST a `/mark` with an old `round`
+- **The stale-round guard in `/mark` and `/accuse`** — deliberately unwritten,
+  marked in both places. The bug is live and reproducible: POST a `/mark` with an old `round`
   while a newer round is open and it lands on the fresh card.
-- The anonymized feed is written server-side but not yet rendered (step 10).
 - Square heat layer (step 11).
 - **Write the square pool.** Keep each square under ~60 characters; measured
   on a 375px phone, longer text clips inside a cell.

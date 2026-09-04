@@ -52,8 +52,8 @@ function bump() {
 
 const squareText = new Map(SQUARE_POOL.map((s) => [s.id, s.text]));
 
-function pushFeed(text) {
-  game.feed.push({ round: game.round, text, ts: Date.now() });
+function pushFeed(text, kind) {
+  game.feed.push({ round: game.round, text, ts: Date.now(), kind });
   if (game.feed.length > 100) game.feed.splice(0, game.feed.length - 100);
 }
 
@@ -74,7 +74,7 @@ function openRound() {
     p.marks = freshMarks();
     p.accusationUsed = false;
   }
-  pushFeed(`Inning ${game.round} is open.`);
+  pushFeed(`Inning ${game.round} is open.`, 'open');
   bump();
 }
 
@@ -87,10 +87,10 @@ function resolveRound(winner, line) {
   if (winner) {
     winner.roundWins++;
     game.winner = { id: winner.id, name: winner.name, line };
-    pushFeed(`${winner.name} hit bingo and took inning ${game.round}.`);
+    pushFeed(`${winner.name} hit bingo and took inning ${game.round}.`, 'bingo');
   } else {
     game.winner = null;
-    pushFeed(`Inning ${game.round} ended with no bingo. Push.`);
+    pushFeed(`Inning ${game.round} ended with no bingo. Push.`, 'push');
   }
   bump();
 }
@@ -141,6 +141,7 @@ function snapshot(playerId) {
   return {
     version: game.version,
     changed: true,
+    now: Date.now(),
     round: game.round,
     phase: game.phase,
     you: {
@@ -341,7 +342,10 @@ app.post('/accuse', (req, res) => {
   // Named accuser, never a named target (§3). Naming the target would clear
   // that person for the whole room for free — one player spends their shot and
   // everybody benefits. Anonymized, a miss tells you only that a shot was fired.
-  pushFeed(`${accuser.name} accused someone and got it ${correct ? 'right!' : 'wrong.'}`);
+  pushFeed(
+    `${accuser.name} accused someone and got it ${correct ? 'right!' : 'wrong.'}`,
+    correct ? 'hit' : 'miss'
+  );
   bump();
 
   res.json({ ...snapshot(playerId), accusation: { correct, wipedYou: !correct } });
