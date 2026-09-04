@@ -279,12 +279,22 @@ app.post('/next-inning', (req, res) => {
   res.json({ ok: true, round: game.round, phase: game.phase, version: game.version });
 });
 
+app.post("/force-resolve", (req, res) => {
+  // The escape hatch for a stuck round (§5). Only meaningful mid-round: there
+  // is nothing to end in IDLE, and RESOLVED is already over. Unlike Start Next
+  // Inning this stays live during OPEN by definition, which is why the confirm
+  // step lives on the client.
+  if (game.phase !== PHASE.OPEN) {
+    return res.status(409).json({ error: "no round to resolve", phase: game.phase });
+  }
+  resolveRound(null);
+  res.json({ ok: true, round: game.round, phase: game.phase, version: game.version });
+});
+
 // ---------------------------------------------------------------------------
 // Not built yet (§7):
-//   POST /accuse         step 8, resolves against state as it stands
-//   POST /force-resolve  step 7, calls resolveRound(null) for a push, and
-//                        needs a confirm step on the client since it stays
-//                        live during OPEN by definition
+//   POST /accuse   step 8, resolves against state as it stands, wipes the
+//                  target on a hit and the accuser on a miss
 // ---------------------------------------------------------------------------
 
 const PORT = process.env.PORT || 3000;

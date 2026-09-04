@@ -75,6 +75,13 @@
   .WARM { background: #3b3620; color: #dcc26a; }
   .HOT { background: #46301d; color: #f0a35e; }
   .BLAZING { background: #4d2020; color: #ff7a6b; }
+  #controls { margin-top: 18px; }
+  .ctrl { width: 100%; padding: 15px; font-weight: 600; margin-bottom: 8px;
+          border-radius: 10px; touch-action: manipulation; font-family: inherit; }
+  .ctrl.primary { background: #2f6fd0; border-color: #2f6fd0; color: #fff; }
+  .ctrl.danger { background: #241a1a; border-color: #4d302e; color: #d08b84; }
+  .ctrl.danger.armed { background: #8f2b22; border-color: #e2584d; color: #fff; }
+  .ctrl:disabled { opacity: .3; }
   .hide { display: none; }
   .note { font-size: 11px; color: #62727f; margin-top: 18px; line-height: 1.5; }
   code { font-size: 11px; color: #8fa6ba; }
@@ -103,9 +110,11 @@
   <h2>Players</h2>
   <div id="players"></div>
 
-  <div class="note">
-    Round controls are step 7. Until the buttons exist, start an inning with
-    <code>POST /next-inning</code>.
+  <h2>Round control</h2>
+  <div id="controls">
+    <button id="nextInning" class="ctrl primary"></button>
+    <button id="forceResolve" class="ctrl danger">Force Resolve</button>
+    <div class="note" id="ctrlNote"></div>
   </div>
 </div>
 
@@ -301,6 +310,7 @@ function paint() {
   $('grid').classList.toggle('locked', !open);
   $('grid').classList.toggle('dim', snap.phase === 'IDLE');
   renderBanner();
+  renderControls();
 
   const marks = effectiveMarks();
   const winLine = snap.winner && snap.winner.isYou ? snap.winner.line : null;
@@ -363,6 +373,62 @@ function renderBanner() {
       `<div class="bs">Inning ${snap.round} is over.</div>`;
   }
 }
+
+/**
+ * Anyone can roll the round — no host page, no key (§5). The state machine
+ * does the protecting instead: exactly one of these two is live at any moment,
+ * because Start Next Inning is illegal during OPEN and Force Resolve is
+ * meaningless outside it.
+ */
+let armed = false;
+let armTimer = null;
+
+function arm() {
+  armed = true;
+  clearTimeout(armTimer);
+  armTimer = setTimeout(() => { armed = false; paint(); }, 4000);
+  paint();
+}
+
+function disarm() {
+  armed = false;
+  clearTimeout(armTimer);
+}
+
+function renderControls() {
+  const next = $('nextInning');
+  const force = $('forceResolve');
+  const open = isOpen();
+
+  // The whole reason a host key is unnecessary: one mis-scroll mid-round would
+  // otherwise deal everybody a fresh card with no undo.
+  next.disabled = open;
+  next.textContent = open
+    ? `Inning ${snap.round} in progress`
+    : `Start inning ${snap.round + 1}`;
+
+  if (!open) disarm();
+  force.disabled = !open;
+  force.classList.toggle('armed', armed);
+  force.textContent = armed ? `Tap again to end inning ${snap.round}` : 'Force Resolve';
+
+  $('ctrlNote').textContent = open
+    ? 'Force Resolve ends the inning with no winner. Anyone can press it.'
+    : 'Fresh cards for everyone. Anyone can press it.';
+}
+
+$('nextInning').addEventListener('click', async () => {
+  $('nextInning').disabled = true;
+  try { await fetch('/next-inning', { method: 'POST' }); } catch {}
+  await poll();
+});
+
+$('forceResolve').addEventListener('click', async () => {
+  if (!armed) return arm();   // confirm step: this one is destructive (§5)
+  disarm();
+  try { await fetch('/force-resolve', { method: 'POST' }); } catch {}
+  await poll();
+});
 
 function setConn(kind) {
   const el = $('conn');
