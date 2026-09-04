@@ -4,7 +4,8 @@
   "description": "Live multiplayer bingo for people sitting at a ballpark together",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node test-bingo.js"
   },
   "author": "",
   "license": "ISC",

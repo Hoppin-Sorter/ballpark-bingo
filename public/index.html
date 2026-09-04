@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ballpark Bingo — deploy smoke test</title>
+<!--
+  THROWAWAY. This page exists only to prove step 3: that the deploy is
+  reachable from a phone on cellular, that /join works, and that the
+  ?since= poll short-circuits. The real client is step 4 (Saturday morning)
+  and should replace this file wholesale. No marking, no round controls.
+-->
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 16px 14px calc(24px + env(safe-area-inset-bottom));
+    font: 16px/1.4 -apple-system, system-ui, sans-serif;
+    background: #10151b; color: #e8edf2;
+  }
+  h1 { font-size: 17px; margin: 0 0 2px; letter-spacing: .01em; }
+  .sub { font-size: 12px; color: #7c8b9a; margin-bottom: 14px; }
+  .bar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-size: 12px; color: #9fb0c0; margin-bottom: 14px;
+  }
+  .pill { background: #1b232c; border-radius: 999px; padding: 4px 10px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .live .dot { background: #35c56a; } .live { color: #35c56a; }
+  .down .dot { background: #e2584d; } .down { color: #e2584d; }
+  input, button {
+    font: inherit; border-radius: 10px; border: 1px solid #2b3742;
+  }
+  input { background: #171f27; color: #e8edf2; padding: 12px; width: 100%; }
+  button {
+    background: #2f6fd0; color: #fff; border-color: #2f6fd0;
+    padding: 13px 16px; width: 100%; margin-top: 10px; font-weight: 600;
+  }
+  button:active { background: #2559a8; }
+  #grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 4px 0 18px; }
+  .sq {
+    aspect-ratio: 1; border-radius: 8px; background: #1b232c;
+    padding: 4px; font-size: 9.5px; line-height: 1.15; color: #cdd9e4;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; overflow: hidden; border: 1px solid #222c36;
+  }
+  .sq.free { background: #243447; color: #7fb0ea; font-weight: 700; font-size: 11px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
+       color: #7c8b9a; margin: 18px 0 7px; font-weight: 600; }
+  .row { display: flex; justify-content: space-between; align-items: center;
+         padding: 9px 11px; background: #171f27; border-radius: 8px; margin-bottom: 5px; }
+  .badge { font-size: 10px; font-weight: 700; letter-spacing: .05em;
+           padding: 3px 8px; border-radius: 999px; }
+  .COLD { background: #23313d; color: #8fa6ba; }
+  .WARM { background: #3b3620; color: #dcc26a; }
+  .HOT { background: #46301d; color: #f0a35e; }
+  .BLAZING { background: #4d2020; color: #ff7a6b; }
+  .hide { display: none; }
+  .note { font-size: 11px; color: #62727f; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<h1>Ballpark Bingo</h1>
+<div class="sub">deploy smoke test — step 3</div>
+
+<div id="join">
+  <input id="name" placeholder="Your name" maxlength="20" autocomplete="off">
+  <button id="go">Join</button>
+</div>
+
+<div id="game" class="hide">
+  <div class="bar">
+    <span id="conn" class="pill live"><span class="dot"></span>live</span>
+    <span class="pill">v<span id="ver">0</span></span>
+    <span class="pill">inning <span id="round">0</span></span>
+    <span class="pill" id="phase">IDLE</span>
+    <span class="pill" id="polls">0 polls</span>
+  </div>
+
+  <h2>Your card</h2>
+  <div id="grid"></div>
+
+  <h2>Players</h2>
+  <div id="players"></div>
+
+  <div class="note">
+    No marking yet — that's step 4. If this grid rendered on your phone with
+    wifi off, step 3 is done.
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let playerId = localStorage.getItem('bb.playerId');
+let lastVersion = -1;
+let polls = 0;
+
+async function join() {
+  const name = $('name').value.trim();
+  if (!name) return;
+  $('go').disabled = true;
+  try {
+    const r = await fetch('/join', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!r.ok) throw new Error((await r.json()).error || 'join failed');
+    const data = await r.json();
+    playerId = data.playerId;
+    localStorage.setItem('bb.playerId', playerId);
+    start(data.snapshot);
+  } catch (e) {
+    alert(e.message);
+    $('go').disabled = false;
+  }
+}
+
+function start(snap) {
+  $('join').classList.add('hide');
+  $('game').classList.remove('hide');
+  render(snap);
+  setInterval(poll, 3000);
+}
+
+async function poll() {
+  try {
+    const r = await fetch(`/state/${playerId}?since=${lastVersion}`);
+    if (r.status === 404) { // server restarted, our id is gone
+      localStorage.removeItem('bb.playerId');
+      location.reload();
+      return;
+    }
+    const data = await r.json();
+    polls++;
+    $('polls').textContent = polls + ' polls';
+    setConn(true);
+    if (data.changed === false) return; // nothing moved — this is the win
+    render(data);
+  } catch {
+    setConn(false);
+  }
+}
+
+function setConn(ok) {
+  const el = $('conn');
+  el.className = 'pill ' + (ok ? 'live' : 'down');
+  el.innerHTML = '<span class="dot"></span>' + (ok ? 'live' : 'offline');
+}
+
+function render(s) {
+  lastVersion = s.version;
+  $('ver').textContent = s.version;
+  $('round').textContent = s.round;
+  $('phase').textContent = s.phase;
+
+  const grid = $('grid');
+  grid.innerHTML = '';
+  for (let cell = 0; cell < 25; cell++) {
+    const d = document.createElement('div');
+    if (cell === 12) {
+      d.className = 'sq free';
+      d.textContent = 'FREE';
+    } else {
+      d.className = 'sq';
+      d.textContent = s.card[cell < 12 ? cell : cell - 1].text;
+    }
+    grid.appendChild(d);
+  }
+
+  $('players').innerHTML = s.players.map((p) =>
+    `<div class="row"><span>${escapeHtml(p.name)}${p.isYou ? ' (you)' : ''}</span>` +
+    `<span class="badge ${p.badge}">${p.badge}</span></div>`
+  ).join('');
+}
+
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+$('go').addEventListener('click', join);
+$('name').addEventListener('keydown', (e) => { if (e.key === 'Enter') join(); });
+
+// Returning to a live session after a reload.
+if (playerId) {
+  fetch(`/state/${playerId}?since=-1`).then((r) => {
+    if (!r.ok) { localStorage.removeItem('bb.playerId'); return; }
+    return r.json().then(start);
+  }).catch(() => {});
+}
+</script>
+</body>
+</html>
