@@ -55,6 +55,10 @@ indistinguishable from another, the game breaks.
 from the header button. A reload with a stored `playerId` goes straight to the game.
 
 **Phase** (`#banner`, and `#grid` gets `.locked` / `.dim`)
+
+When no inning is open the grid is `pointer-events: none`. The banner must therefore
+carry a `#bannerStart` button and the card must say it is locked — without both,
+players tap a dead card and conclude the app is broken. Do not remove either.
 - `IDLE` — no inning open, grid dimmed and inert
 - `OPEN` — banner hidden so the card gets the whole screen
 - `RESOLVED` — deliberately loud. This is the cue to put the phone down and talk.

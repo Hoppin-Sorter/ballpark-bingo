@@ -232,6 +232,12 @@ app.post('/join', (req, res) => {
   if (!name) return res.status(400).json({ error: 'name required' });
   if (name.length > 20) return res.status(400).json({ error: 'name too long' });
 
+  // Two players called Mike would be indistinguishable in the accuse picker, and
+  // naming a person is the entire mechanic. Cheaper to refuse than to disambiguate.
+  const taken = Object.values(game.players)
+    .some((p) => p.name.toLowerCase() === name.toLowerCase());
+  if (taken) return res.status(409).json({ error: `"${name}" is taken — add an initial` });
+
   const id = crypto.randomUUID();
   game.players[id] = {
     id,
@@ -320,13 +326,13 @@ app.post('/next-inning', (req, res) => {
   res.json({ ok: true, round: game.round, phase: game.phase, version: game.version });
 });
 
-app.post("/force-resolve", (req, res) => {
+app.post('/force-resolve', (req, res) => {
   // The escape hatch for a stuck round (§5). Only meaningful mid-round: there
   // is nothing to end in IDLE, and RESOLVED is already over. Unlike Start Next
   // Inning this stays live during OPEN by definition, which is why the confirm
   // step lives on the client.
   if (game.phase !== PHASE.OPEN) {
-    return res.status(409).json({ error: "no round to resolve", phase: game.phase });
+    return res.status(409).json({ error: 'no round to resolve', phase: game.phase });
   }
   resolveRound(null);
   res.json({ ok: true, round: game.round, phase: game.phase, version: game.version });

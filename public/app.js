@@ -295,9 +295,17 @@ function renderRoom() {
   card.classList.remove('WARMING', 'CLOSE', 'ONE_AWAY');
   if (band !== 'QUIET') card.classList.add(band);
 
-  // Between innings there is nothing to be close to, so say nothing.
-  document.querySelector('.roomLabel').classList.toggle('hide', !open);
-  if (!open) return;
+  // A dimmed grid on its own reads as broken rather than as waiting, so the
+  // card says what it is doing between innings.
+  const label = document.querySelector('.roomLabel');
+  label.classList.toggle('locked', !open);
+  if (!open) {
+    $('roomTitle').textContent = 'Card locked';
+    $('roomSub').textContent = snap.phase === 'IDLE'
+      ? 'nothing to mark until an inning starts'
+      : 'start the next inning for a fresh card';
+    return;
+  }
   const [title, sub] = ROOM_COPY[band] || ROOM_COPY.QUIET;
   $('roomTitle').textContent = title;
   $('roomSub').textContent = sub;
@@ -312,25 +320,37 @@ function renderBanner() {
   const b = $('banner');
   const w = snap.winner;
 
-  if (snap.phase === 'OPEN') { b.className = 'hide'; return; }
+  const setClasses = (...names) => {
+    b.className = '';
+    names.filter(Boolean).forEach((n) => b.classList.add(n));
+  };
+
+  if (snap.phase === 'OPEN') { setClasses('hide'); return; }
+
+  // Nothing is markable until an inning is open, so the banner has to carry the
+  // way out. Before this, the only Start button was below the card, the player
+  // list and the accuse control — people tapped a dead card and assumed it was
+  // broken.
+  const start = `<button id="bannerStart" class="ctrl primary bannerBtn">` +
+    `Start inning ${snap.round + 1}</button>`;
 
   if (snap.phase === 'IDLE') {
-    b.className = 'idle';
+    setClasses('idle');
     b.innerHTML = '<div class="bt">No inning open</div>' +
-      '<div class="bs">Waiting for someone to start inning 1.</div>';
+      '<div class="bs">Anyone can start it — including you.</div>' + start;
     return;
   }
 
-  b.className = 'resolved' + (w && w.isYou ? ' mine' : '');
+  setClasses('resolved', w && w.isYou ? 'mine' : null);
   if (!w) {
     b.innerHTML = `<div class="bt">Push</div>` +
-      `<div class="bs">Inning ${snap.round} ended with no bingo.</div>`;
+      `<div class="bs">Inning ${snap.round} ended with no bingo.</div>` + start;
   } else if (w.isYou) {
     b.innerHTML = `<div class="bt">BINGO</div>` +
-      `<div class="bs">You took inning ${snap.round}. ${snap.you.roundWins} on the day.</div>`;
+      `<div class="bs">You took inning ${snap.round}. ${snap.you.roundWins} on the day.</div>` + start;
   } else {
     b.innerHTML = `<div class="bt">${esc(w.name)} got bingo</div>` +
-      `<div class="bs">Inning ${snap.round} is over.</div>`;
+      `<div class="bs">Inning ${snap.round} is over.</div>` + start;
   }
 }
 
@@ -504,10 +524,18 @@ function renderControls() {
     : 'Fresh cards for everyone. Anyone can press it.';
 }
 
-$('nextInning').addEventListener('click', async () => {
-  $('nextInning').disabled = true;
+async function startNextInning(btn) {
+  if (btn) btn.disabled = true;
   try { await fetch('/next-inning', { method: 'POST' }); } catch {}
   await poll();
+}
+
+$('nextInning').addEventListener('click', () => startNextInning($('nextInning')));
+
+// Delegated: renderBanner rewrites its innerHTML, so the node is replaced.
+$('banner').addEventListener('click', (e) => {
+  const b = e.target.closest('#bannerStart');
+  if (b) startNextInning(b);
 });
 
 $('forceResolve').addEventListener('click', async () => {

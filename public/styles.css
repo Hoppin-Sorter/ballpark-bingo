@@ -195,6 +195,13 @@ input::placeholder { color: var(--text-dim); }
 #banner.resolved { background: var(--warn-bg); border-color: var(--mets-orange); color: var(--warn); }
 #banner.resolved.mine { background: var(--mets-blue); border-color: var(--mets-blue); color: var(--text-invert); }
 .bt { font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+/* The way out of a dead card has to be where the player is already looking,
+   not below the card, the player list and the accuse control. */
+.bannerBtn { margin: 14px 0 0; }
+#banner.resolved.mine .bannerBtn {
+  background: var(--surface); border-color: var(--surface); color: var(--mets-blue);
+}
+.roomLabel.locked .rl { color: var(--text-dim); }
 .bs { font-size: 13px; margin-top: 6px; }
 
 /* =========================================================================
