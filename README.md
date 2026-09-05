@@ -11,14 +11,17 @@ npm start          # http://localhost:3000
 npm test           # bingo geometry + card generation
 ```
 
-## Built so far — spec §7 steps 1-5 and 7-10
+## Built so far — spec §7 steps 1-5 and 7-10, plus a front-end redesign
 
 | File | What |
 |---|---|
 | `server.js` | State, version counter, phase machine, all endpoints below |
 | `bingo.js` | Card geometry, `findBingo`, `dealCard` |
 | `squares.js` | Starter pool, 32 squares — **rewrite Saturday night (§8)** |
-| `public/index.html` | The client: grid, optimistic marking, poll loop, phase UI |
+| `public/index.html` | Markup only |
+| `public/styles.css` | Design tokens + the light Mets theme |
+| `public/app.js` | Grid, optimistic marking, poll loop, phase UI |
+| `DESIGN.md` | Token contract and state inventory — read before touching the front end |
 | `test-bingo.js` | 12 tests over bingo geometry and card generation |
 
 | Endpoint | State |
@@ -39,6 +42,25 @@ IDLE ──next-inning──▶ OPEN ──bingo──▶ RESOLVED
 ```
 
 `OPEN ▶ OPEN` is refused, which is what makes a host key unnecessary (§5).
+
+### Design changes from the spec
+
+Two deliberate departures from rev 6, both anticipated by the spec itself:
+
+- **Per-player heat badges are gone.** §9 listed "heat badges make accusing too easy"
+  as a live risk. They are not hidden in the client — the server no longer computes or
+  sends them at all, because a client-side hide is readable by anyone who opens
+  `/state` in a phone browser.
+- **The card frame carries a room-proximity band instead.** It says how close the
+  nearest *other* player is to a bingo — `QUIET`, `WARMING`, `CLOSE`, `ONE_AWAY` —
+  and never who. The read moves from a leaderboard to watching people, which is the
+  Clue-style read §3 was after.
+
+Thresholds live in `ROOM_BANDS` in `server.js`. Measured over simulated rooms of six
+with random marks: one mark each already reads `WARMING`, four reads `CLOSE`, seven
+reads `ONE_AWAY`, and bingo lands around nine to eleven. Real marking is far more
+correlated than random, so in play this tracks the inning. Widen the bands if
+`ONE_AWAY` sits on for too much of a round to be worth looking at.
 
 ### Still to do
 

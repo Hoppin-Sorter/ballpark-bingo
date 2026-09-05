@@ -12,9 +12,9 @@
  * Rule of thumb from §8: if confirming it needs a replay or a stat line,
  * it's a bad square. Everything here should be callable from a seat.
  *
- * LENGTH LIMIT: keep text under ~60 characters. A grid cell is 67px on a
- * 375px phone, and measured on device, 60 chars is the last length that fits
- * without clipping. 83 overflows. The longest square here is 60.
+ * LENGTH LIMIT: keep text under ~65 characters. Measured in the browser at
+ * 375px, where a tile is 63px inside the card frame: 68 characters still fit
+ * at the smallest font step. The longest square here is 60.
  */
 
 const CERTAIN = [

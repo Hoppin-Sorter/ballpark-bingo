@@ -1,0 +1,328 @@
+/* ===========================================================================
+   Ballpark Bingo — light Mets theme
+
+   Every colour, radius and spacing below the token block is a var(). Nothing
+   past :root should contain a raw hex value: re-theming the whole app should
+   be an edit to this one block and nothing else.
+
+   See DESIGN.md for the state inventory and the hard constraints.
+   =========================================================================== */
+
+:root {
+  /* --- brand ------------------------------------------------------------ */
+  --mets-blue: #002d72;
+  --mets-blue-deep: #001a47;
+  --mets-orange: #ff5910;
+
+  /* --- surfaces --------------------------------------------------------- */
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --surface-sunk: #e4e9f1;
+  --border: #c9d3e0;
+  --border-strong: #a9b7c9;
+
+  /* --- text ------------------------------------------------------------- */
+  --text: #0d1b33;
+  --text-dim: #5b6b84;
+  --text-invert: #ffffff;
+
+  /* --- tiles ------------------------------------------------------------ */
+  --tile-bg: var(--surface);
+  --tile-border: var(--border);
+  --tile-text: #16233d;
+  --tile-marked-bg: var(--mets-blue);
+  --tile-marked-text: var(--text-invert);
+  --tile-marked-pip: var(--mets-orange);
+  --tile-free-bg: #dce5f2;
+  --tile-free-text: var(--mets-blue);
+  --tile-pending-border: var(--mets-orange);
+  --tile-win-ring: var(--mets-orange);
+  --tile-revert-ring: #b3261e;
+
+  /* --- room proximity bands --------------------------------------------
+     Applied to the card frame, never to a tile. A marked tile is an opaque
+     fill, so the band can never wash out a square you have selected. */
+  --room-quiet-bg: var(--surface);
+  --room-quiet-border: var(--border);
+  --room-warming-bg: #fff3ea;
+  --room-warming-border: #f7bd98;
+  --room-close-bg: #ffe7d8;
+  --room-close-border: #f79b63;
+  --room-oneaway-bg: #ffdcc7;
+  --room-oneaway-border: var(--mets-orange);
+
+  /* --- feedback --------------------------------------------------------- */
+  --ok: #12703f;
+  --ok-bg: #e2f5ea;
+  --ok-border: #8fd3ac;
+  --danger: #b3261e;
+  --danger-bg: #fce8e6;
+  --danger-border: #efa9a3;
+  --warn: #8a4b00;
+  --warn-bg: #fff0e0;
+  --warn-border: #f0be86;
+
+  /* --- geometry --------------------------------------------------------- */
+  --radius: 12px;
+  --radius-sm: 9px;
+  --radius-pill: 999px;
+  --gap: 5px;
+  --tap: 44px;
+  --pad: 14px;
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+/* =========================================================================
+   base
+   ========================================================================= */
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+  margin: 0;
+  padding: 12px 12px calc(28px + env(safe-area-inset-bottom));
+  font: 16px/1.4 var(--font);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-dim);
+  margin: 18px 0 7px;
+  font-weight: 700;
+}
+
+.hide { display: none !important; }
+
+.note { font-size: 11.5px; color: var(--text-dim); line-height: 1.5; margin-top: 8px; }
+
+button, input { font: inherit; font-family: var(--font); border-radius: var(--radius-sm); }
+
+/* =========================================================================
+   header
+   ========================================================================= */
+
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 14px;
+}
+
+.brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+
+/* Slot for a crest if one is dropped in; otherwise a plain brand disc. */
+.brand-mark {
+  width: 30px; height: 30px; border-radius: 50%; flex: none;
+  background: var(--mets-blue);
+  border: 2px solid var(--mets-orange);
+}
+
+h1 {
+  font-size: 17px; margin: 0; letter-spacing: -.01em;
+  color: var(--mets-blue); font-weight: 800;
+}
+
+.linkBtn {
+  background: none; border: 1px solid var(--border-strong); color: var(--text-dim);
+  padding: 7px 12px; font-size: 12px; font-weight: 600; flex: none;
+}
+.linkBtn:active { background: var(--surface-sunk); }
+
+/* =========================================================================
+   join + rules
+   ========================================================================= */
+
+input {
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border-strong); padding: 13px; width: 100%;
+}
+input::placeholder { color: var(--text-dim); }
+
+.btnPrimary {
+  background: var(--mets-blue); color: var(--text-invert);
+  border: 1px solid var(--mets-blue); padding: 15px; width: 100%;
+  margin-top: 10px; font-weight: 700; min-height: var(--tap);
+}
+.btnPrimary:active { background: var(--mets-blue-deep); }
+.btnPrimary:disabled { opacity: .4; }
+
+#rules { background: var(--surface); border: 1px solid var(--border);
+         border-radius: var(--radius); padding: 16px var(--pad); }
+#rules h3 { margin: 0 0 4px; font-size: 18px; color: var(--mets-blue); }
+#rules .lede { margin: 0 0 14px; font-size: 13px; color: var(--text-dim); }
+
+.rule { display: flex; gap: 11px; padding: 11px 0; border-top: 1px solid var(--border); }
+.rule:first-of-type { border-top: none; }
+.rule .n {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--mets-orange); color: var(--text-invert);
+  font-size: 12px; font-weight: 800; display: flex;
+  align-items: center; justify-content: center;
+}
+.rule .body { font-size: 13.5px; line-height: 1.45; }
+.rule b { color: var(--mets-blue); }
+
+/* =========================================================================
+   status bar
+   ========================================================================= */
+
+.bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+       font-size: 11px; color: var(--text-dim); margin-bottom: 12px; }
+
+.pill { background: var(--surface); border: 1px solid var(--border);
+        border-radius: var(--radius-pill); padding: 4px 10px; white-space: nowrap; }
+
+.dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+.live { color: var(--ok); border-color: var(--ok-border); }
+.live .dot { background: var(--ok); }
+.syncing { color: var(--warn); border-color: var(--warn-border); }
+.syncing .dot { background: var(--mets-orange); }
+.down { color: var(--danger); border-color: var(--danger-border); }
+.down .dot { background: var(--danger); }
+
+/* =========================================================================
+   phase banner
+   ========================================================================= */
+
+#banner { border-radius: var(--radius); padding: 16px var(--pad);
+          margin-bottom: 12px; text-align: center; border: 1px solid transparent; }
+#banner.idle { background: var(--surface); border-color: var(--border); color: var(--text-dim); }
+#banner.resolved { background: var(--warn-bg); border-color: var(--mets-orange); color: var(--warn); }
+#banner.resolved.mine { background: var(--mets-blue); border-color: var(--mets-blue); color: var(--text-invert); }
+.bt { font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+.bs { font-size: 13px; margin-top: 6px; }
+
+/* =========================================================================
+   the card — frame carries the room band, tiles never do
+   ========================================================================= */
+
+#card {
+  border-radius: var(--radius); padding: 7px;
+  border: 2px solid var(--room-quiet-border);
+  background: var(--room-quiet-bg);
+  transition: background-color .6s ease, border-color .6s ease;
+}
+#card.WARMING  { background: var(--room-warming-bg); border-color: var(--room-warming-border); }
+#card.CLOSE    { background: var(--room-close-bg);   border-color: var(--room-close-border); }
+#card.ONE_AWAY { background: var(--room-oneaway-bg); border-color: var(--room-oneaway-border); }
+
+.roomLabel { display: flex; align-items: baseline; justify-content: space-between;
+             gap: 8px; margin-bottom: 9px; }
+.roomLabel .rl { font-size: 12px; font-weight: 700; color: var(--mets-blue); }
+.roomLabel .rs { font-size: 11px; color: var(--text-dim); text-align: right; }
+
+#grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--gap); }
+#grid.locked { pointer-events: none; }
+#grid.dim { opacity: .55; }
+
+.sq {
+  position: relative; aspect-ratio: 1; border-radius: var(--radius-sm);
+  background: var(--tile-bg); border: 1px solid var(--tile-border);
+  color: var(--tile-text); padding: 3px; line-height: 1.12;
+  text-align: center; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation; cursor: pointer;
+  transition: background-color .12s, border-color .12s, color .12s;
+}
+.sq:active { transform: scale(.96); }
+
+/* Marked: an opaque brand fill. This is what guarantees the room band cannot
+   overtake a selected tile — there is nothing translucent to tint. */
+.sq.on {
+  background: var(--tile-marked-bg); border-color: var(--tile-marked-bg);
+  color: var(--tile-marked-text); font-weight: 700;
+}
+
+/* Corner pip instead of an X across the label. The full-width X measured
+   4.26:1 against its own label in the dark theme, under the 4.5 floor, and
+   the solid fill already reads unmistakably as marked. */
+.sq.on::after {
+  content: ''; position: absolute; top: 0; right: 0;
+  border-width: 0 13px 13px 0; border-style: solid;
+  border-color: transparent var(--tile-marked-pip) transparent transparent;
+  pointer-events: none;
+}
+
+.sq.pending { border-color: var(--tile-pending-border); border-style: dashed; }
+.sq.win { border-color: var(--tile-win-ring); box-shadow: 0 0 0 2px var(--tile-win-ring); }
+.sq.free {
+  background: var(--tile-free-bg); color: var(--tile-free-text);
+  font-weight: 800; font-size: 11px; cursor: default;
+  border-color: var(--border-strong);
+}
+.sq.reverted { animation: revert .7s ease; }
+@keyframes revert {
+  0%, 100% { box-shadow: none; }
+  25%, 75% { box-shadow: inset 0 0 0 3px var(--tile-revert-ring); }
+}
+
+/* =========================================================================
+   players
+   ========================================================================= */
+
+.row { display: flex; justify-content: space-between; align-items: center;
+       padding: 11px 12px; background: var(--surface); border: 1px solid var(--border);
+       border-radius: var(--radius-sm); margin-bottom: 5px; font-size: 14px; }
+.wins { font-size: 11px; color: var(--text-invert); background: var(--mets-blue);
+        border-radius: var(--radius-pill); padding: 2px 7px; margin-left: 7px; font-weight: 700; }
+.spent { font-size: 10.5px; color: var(--text-dim); margin-left: 7px; }
+
+/* =========================================================================
+   accusation
+   ========================================================================= */
+
+.ctrl { width: 100%; padding: 15px; font-weight: 700; margin-bottom: 8px;
+        min-height: var(--tap); touch-action: manipulation; border: 1px solid transparent; }
+.ctrl:disabled { opacity: .35; }
+
+.ctrl.accuse { background: var(--surface); border-color: var(--mets-blue); color: var(--mets-blue); }
+.ctrl.accuse:active { background: var(--surface-sunk); }
+
+#accusePanel.panel { margin-bottom: 8px; }
+.accuseRow {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 12px; margin-bottom: 5px; font-size: 14px; min-height: var(--tap);
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); border-radius: var(--radius-sm);
+  touch-action: manipulation; text-align: left;
+}
+.accuseRow.armed { background: var(--mets-orange); border-color: var(--mets-orange);
+                   color: var(--text-invert); font-weight: 700; }
+
+#accuseResult { border-radius: var(--radius-sm); padding: 13px; margin-bottom: 8px;
+                font-size: 14px; text-align: center; font-weight: 700; border: 1px solid transparent; }
+#accuseResult.hit { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok); }
+#accuseResult.miss { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger); }
+#accuseResult.wiped { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn); }
+
+/* =========================================================================
+   round control
+   ========================================================================= */
+
+.ctrl.primary { background: var(--mets-blue); border-color: var(--mets-blue); color: var(--text-invert); }
+.ctrl.primary:active { background: var(--mets-blue-deep); }
+.ctrl.danger { background: var(--surface); border-color: var(--danger-border); color: var(--danger); }
+.ctrl.danger.armed { background: var(--danger); border-color: var(--danger); color: var(--text-invert); }
+
+/* =========================================================================
+   feed
+   ========================================================================= */
+
+#feed { max-height: 240px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.fe { display: flex; gap: 9px; align-items: baseline;
+      padding: 10px 11px; margin-bottom: 5px; border-radius: var(--radius-sm);
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 3px solid var(--border-strong); font-size: 13px; }
+.fe.hit { border-left-color: var(--ok); }
+.fe.miss { border-left-color: var(--danger); }
+.fe.bingo { border-left-color: var(--mets-orange); }
+.fe.push { border-left-color: var(--border-strong); }
+.fe.open { border-left-color: var(--mets-blue); color: var(--text-dim); }
+.fe .ft { flex: 1; }
+.fe .fm { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+.feedEmpty { font-size: 12px; color: var(--text-dim); padding: 10px 2px; }

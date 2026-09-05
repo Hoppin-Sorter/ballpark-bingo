@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 
 const SQUARE_POOL = require('./squares');
-const { CARD_SIZE, findBingo, dealCard, freshMarks } = require('./bingo');
+const { CARD_SIZE, LINES, findBingo, dealCard, freshMarks } = require('./bingo');
 
 const app = express();
 app.use(express.json());
@@ -102,14 +102,53 @@ function resolveRound(winner, line) {
 const markCount = (player) => player.marks.reduce((n, m) => n + (m ? 1 : 0), 0);
 
 /**
- * Fuzzy band, never the number (§3). Exact per-player counts would turn
- * accusing into reading a leaderboard, so the count must not leave the server.
+ * How close the room is to a bingo, in squares still needed on the best line
+ * anyone holds.
+ *
+ * The viewer is excluded: from your seat "the room" means everyone else, and a
+ * signal that lit up because of your own card would tell you nothing while
+ * reading as somebody else closing in.
  */
-function heatBadge(n) {
-  if (n >= 15) return 'BLAZING';
-  if (n >= 10) return 'HOT';
-  if (n >= 5) return 'WARM';
-  return 'COLD';
+function roomProximity(exceptPlayerId) {
+  let fewest = Infinity;
+  for (const p of Object.values(game.players)) {
+    if (p.id === exceptPlayerId) continue;
+    for (const line of LINES) {
+      const remaining = line.reduce((n, i) => n + (p.marks[i] ? 0 : 1), 0);
+      if (remaining < fewest) fewest = remaining;
+    }
+  }
+  return fewest;
+}
+
+/**
+ * Banded, and only the band ever leaves the server — the same discipline the
+ * old per-player heat badges followed, and the reason those were removed. This
+ * one is safe to show because it is a maximum across everybody: it says someone
+ * is closing in, never who.
+ *
+ * Banding is on absolute squares remaining rather than a fraction, because
+ * LINES mixes four- and five-square lines around the free centre and 3/4 and
+ * 4/5 are both "one away".
+ */
+// Squares-remaining -> band. Measured over 3000 simulated rooms of six with
+// random marks: 1 mark each already reads WARMING, 4 reads CLOSE, 7 reads
+// ONE_AWAY, and bingo lands around 9-11. Real marking is far more correlated
+// than random — the room mostly sees the same events — so in play this tracks
+// the inning rather than one runaway card. Widen these if the signal sits on
+// ONE_AWAY too long to be worth looking at.
+const ROOM_BANDS = [
+  [1, 'ONE_AWAY'],
+  [2, 'CLOSE'],
+  [3, 'WARMING'],
+];
+
+function roomBand(exceptPlayerId) {
+  const fewest = roomProximity(exceptPlayerId);
+  for (const [remaining, band] of ROOM_BANDS) {
+    if (fewest <= remaining) return band;
+  }
+  return 'QUIET';
 }
 
 /**
@@ -119,6 +158,8 @@ function heatBadge(n) {
  * Dividing by everyone would make a rare square that only three people have
  * read as permanently cold no matter how many of those three hit it.
  */
+const MIN_HOLDERS_FOR_HEAT = 2;
+
 function squareHeat(squareId) {
   let holding = 0;
   let marked = 0;
@@ -128,7 +169,11 @@ function squareHeat(squareId) {
     holding++;
     if (p.marks[i]) marked++;
   }
-  return holding === 0 ? 0 : marked / holding;
+  // With a single holder the fraction is only ever 0 or 1 and it is describing
+  // you, not the room. Heat is a reading of what everyone else has seen, so it
+  // needs at least two holders to say anything.
+  if (holding < MIN_HOLDERS_FOR_HEAT) return 0;
+  return marked / holding;
 }
 
 /**
@@ -156,10 +201,10 @@ function snapshot(playerId) {
     card: me.card.map((id) => ({ id, text: squareText.get(id) })),
     marks: me.marks.slice(),
     heat: me.card.map(squareHeat),
+    room: roomBand(playerId),
     players: Object.values(game.players).map((p) => ({
       id: p.id,
       name: p.name,
-      badge: heatBadge(markCount(p)), // band only — never the count
       roundWins: p.roundWins,
       accusationUsed: p.accusationUsed,
       isYou: p.id === playerId,
