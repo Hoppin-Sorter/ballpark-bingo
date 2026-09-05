@@ -33,6 +33,7 @@ npm test           # bingo geometry + card generation
 | `POST /next-inning` | done, refuses while `phase === OPEN` |
 | `POST /accuse` | done, with the stale-round guard |
 | `POST /force-resolve` | done, refuses outside `OPEN`, confirm step on the client |
+| `POST /reset` | done, wipes players/scores/feed back to a new game |
 
 The phase machine:
 

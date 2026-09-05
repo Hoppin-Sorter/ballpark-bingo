@@ -8,6 +8,13 @@ database and no undo.
 
 That is fine on Saturday and fatal on Sunday.
 
+**You no longer need a push to reset.** There is a Reset control at the very bottom of
+the page, below the feed — type `reset` to confirm. It removes every player, clears the
+scores and the feed, and puts the game back to inning 0. Every phone notices within one
+3-second poll and drops to the join screen by itself. Use it to clear out test players
+before first pitch. If the app is ever wedged badly enough that the button cannot help,
+Railway's Restart button does the same thing with no push and no code change.
+
 **Freeze `main` once it works Saturday night.** If something has to change during the
 game, know that everyone will be dealt fresh cards and lose their scores the moment
 you push. Usually the right answer mid-game is to leave it broken and fix it after.

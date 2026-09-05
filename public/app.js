@@ -545,6 +545,39 @@ $('forceResolve').addEventListener('click', async () => {
   await poll();
 });
 
+// --- reset -----------------------------------------------------------------
+// Typed confirm rather than the two-tap used by Force Resolve. Force Resolve
+// costs one inning; this erases the whole day, and the button sits on every
+// phone all afternoon. It stops fat fingers, not a friend with curl — /reset is
+// unauthenticated like every other route.
+function showResetConfirm(show) {
+  $('resetConfirm').classList.toggle('hide', !show);
+  $('resetReveal').classList.toggle('hide', show);
+  if (show) $('resetWord').focus();
+  else $('resetWord').value = '';
+}
+
+$('resetReveal').addEventListener('click', () => showResetConfirm(true));
+$('resetCancel').addEventListener('click', () => showResetConfirm(false));
+
+$('resetGo').addEventListener('click', async () => {
+  if ($('resetWord').value.trim().toLowerCase() !== 'reset') {
+    $('resetWord').focus();
+    return;
+  }
+  $('resetGo').disabled = true;
+  try {
+    await fetch('/reset', { method: 'POST' });
+  } catch {
+    $('resetGo').disabled = false;
+    setConn('down');
+    return;
+  }
+  // Other phones find out on their next poll via the 404. This one already
+  // knows, so don't make it wait three seconds to react.
+  handleGone();
+});
+
 function setConn(kind) {
   const el = $('conn');
   el.className = 'pill ' + kind;

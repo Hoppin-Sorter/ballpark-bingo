@@ -92,6 +92,20 @@
 
   <h2>Feed</h2>
   <div id="feed"></div>
+
+  <!-- Deliberately last on the page, and behind a typed confirm. Nothing in the
+       state machine protects a score wipe the way it protects round control. -->
+  <div id="dangerZone">
+    <button id="resetReveal" class="ctrl danger">Reset everything</button>
+    <div id="resetConfirm" class="hide">
+      <p class="dangerCopy">Removes every player and wipes the day's scores.
+        Everyone will have to rejoin. Type <b>reset</b> to confirm.</p>
+      <input id="resetWord" placeholder="reset" autocomplete="off"
+             autocapitalize="none" autocorrect="off" spellcheck="false">
+      <button id="resetGo" class="ctrl danger">Reset the game</button>
+      <button id="resetCancel" class="ctrl">Cancel</button>
+    </div>
+  </div>
 </section>
 
 </body>

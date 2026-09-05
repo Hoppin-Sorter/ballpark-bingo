@@ -89,6 +89,11 @@ heat indicator anywhere** — the server does not send one.
 
 **Feed** (`.fe` with `.open`, `.hit`, `.miss`, `.bingo`, `.push`) — newest first.
 
+**Danger zone** (`#dangerZone`) — must stay the last thing on the page, below the feed,
+and must keep its typed confirm. It wipes every player and the whole day's scores, and
+nothing in the state machine protects against that the way it protects round control.
+Do not promote it, shorten it to a single tap, or move it above the feed.
+
 ## Hard constraints
 
 - **Tap targets ≥ 44px.** Tiles are currently 63px at 375px wide; `--tap` is the floor

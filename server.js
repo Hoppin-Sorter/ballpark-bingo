@@ -338,6 +338,29 @@ app.post('/force-resolve', (req, res) => {
   res.json({ ok: true, round: game.round, phase: game.phase, version: game.version });
 });
 
+app.post('/reset', (req, res) => {
+  // Start the whole day over. Legal from any phase — there is no state in which
+  // resetting is invalid.
+  //
+  // Every phone recovers on its own: /state returns 404 { rejoin: true } for an
+  // unknown player, and it checks that before the version short-circuit, so
+  // within one poll each client clears its stored id and lands on the join
+  // screen.
+  game.players = Object.create(null);
+  game.round = 0;
+  game.phase = PHASE.IDLE;
+  game.winner = null;
+  game.feed = [];   // carries names and outcomes from the game just ended
+
+  // Deliberately NOT reset. §4's polling rests on a monotonic counter: a client
+  // holding lastVersion 47 and polling ?since=47 against a server back at 1
+  // would be told changed:false forever. The 404 above happens to fire first
+  // today, but relying on that ordering is how a sync bug gets in later.
+  bump();
+
+  res.json({ ok: true, round: game.round, phase: game.phase, version: game.version });
+});
+
 app.post('/accuse', (req, res) => {
   const { playerId, targetId, round } = req.body ?? {};
 

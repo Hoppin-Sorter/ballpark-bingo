@@ -333,3 +333,15 @@ input::placeholder { color: var(--text-dim); }
 .fe .ft { flex: 1; }
 .fe .fm { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
 .feedEmpty { font-size: 12px; color: var(--text-dim); padding: 10px 2px; }
+
+/* =========================================================================
+   danger zone — last thing on the page, behind a typed confirm
+   ========================================================================= */
+
+#dangerZone { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--border); }
+#resetConfirm { margin-top: 10px; }
+.dangerCopy { font-size: 12.5px; line-height: 1.5; color: var(--danger);
+              background: var(--danger-bg); border: 1px solid var(--danger-border);
+              border-radius: var(--radius-sm); padding: 11px 12px; margin: 0 0 10px; }
+#resetWord { margin-bottom: 8px; }
+#dangerZone .ctrl { margin-bottom: 8px; }
