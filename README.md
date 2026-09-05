@@ -17,11 +17,12 @@ npm test           # bingo geometry + card generation
 |---|---|
 | `server.js` | State, version counter, phase machine, all endpoints below |
 | `bingo.js` | Card geometry, `findBingo`, `dealCard` |
-| `squares.js` | Starter pool, 32 squares — **rewrite Saturday night (§8)** |
+| `squares.js` | The square pool — 54 squares, 14 certain / 30 medium / 10 rare |
 | `public/index.html` | Markup only |
 | `public/styles.css` | Design tokens + the light Mets theme |
 | `public/app.js` | Grid, optimistic marking, poll loop, phase UI |
 | `DESIGN.md` | Token contract and state inventory — read before touching the front end |
+| `NEXT-PUSH.md` | Deploy note, game-day checklist and tuning levers |
 | `test-bingo.js` | 12 tests over bingo geometry and card generation |
 
 | Endpoint | State |
@@ -67,9 +68,12 @@ correlated than random, so in play this tracks the inning. Widen the bands if
 - **The stale-round guard in `/mark` and `/accuse`** — deliberately unwritten,
   marked in both places. The bug is live and reproducible: POST a `/mark` with an old `round`
   while a newer round is open and it lands on the fresh card.
-- Square heat layer (step 11).
-- **Write the square pool.** Keep each square under ~60 characters; measured
-  on a 375px phone, longer text clips inside a cell.
+- Per-square heat (step 11) is computed server-side but not rendered. The card
+  frame's room-proximity band replaced it; running both would put two competing
+  heat signals on one small screen.
+- Sanity-check the Citi Field squares on the day — the Home Run Apple, the 7 Line
+  Army, Mr. Met, planes out of LaGuardia. A square nobody can hit is worse than
+  no square at all.
 
 ## Deploy
 
