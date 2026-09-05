@@ -24,12 +24,13 @@ you push. Usually the right answer mid-game is to leave it broken and fix it aft
   the fact that nobody's score is visible, and that anyone can start an inning.
   Everything else people work out by playing.
 
-## Still unwritten
+## Nothing is unwritten now
 
-- **The stale-round guard**, marked in place in both `/mark` and `/accuse` in
-  `server.js`. Same three lines in each. Compare the client's `round` to `game.round`
-  and reject a mismatch. Reproduce it first: POST a `/mark` with an old `round` while
-  a newer inning is open, and watch it land on the fresh card.
+The stale-round guard is in, in both `/mark` and `/accuse`. A write carrying a
+round number that is not the live one is refused with a 409, and the client's
+optimistic mark reverts on the spot. The phase gate alone did not cover this:
+after a rollover the new inning is OPEN too, so a late tap sailed straight
+through it onto a fresh card.
 
 ## Sunday morning checklist
 

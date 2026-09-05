@@ -280,24 +280,19 @@ app.post('/mark', (req, res) => {
     return res.status(409).json({ error: 'round is not open', phase: game.phase });
   }
 
-  // -------------------------------------------------------------------------
-  // STALE-ROUND GUARD GOES HERE — step 6, yours to write (§4).
+  // Stale-round guard (§4). The client says which round its tap was aimed at.
+  // If the round has rolled since, that card no longer exists and the mark
+  // would land on the *fresh* card at the same index — the player would watch
+  // a square light up on a board they have never seen.
   //
-  // The failure is now reproducible: rounds actually roll over as of this
-  // step. A player taps a square just as somebody starts the next inning.
-  // Their tap was aimed at a card that no longer exists, but it arrives after
-  // the rollover, so the server writes it onto the *fresh* card at the same
-  // index. They watch a square light up on a board they have never seen.
+  // The phase gate above does not cover this. After a rollover the new round is
+  // OPEN too, so a late tap sails straight through it.
   //
-  // `round` is already on the wire from the client for exactly this. Compare
-  // it to game.round and reject the mismatch — the client's next poll will
-  // correct its own UI, because the snapshot is authoritative.
-  //
-  // Reproduce it before you fix it: open two phones, start an inning, then
-  // POST /mark with a stale round number while the round is open and watch it
-  // land anyway.
-  // -------------------------------------------------------------------------
-  void round;
+  // Rejecting is enough on its own: the client's next snapshot is authoritative
+  // and its optimistic mark reverts on the spot.
+  if (round !== game.round) {
+    return res.status(409).json({ error: 'stale round', round: game.round });
+  }
 
   // Only bump when something actually changed, so a repeat tap of the same
   // value doesn't wake every other client's poll for nothing.
@@ -359,9 +354,12 @@ app.post('/accuse', (req, res) => {
     return res.status(409).json({ error: 'accusation already spent this round' });
   }
 
-  // The stale-round guard belongs here too — §4 says every /mark and /accuse
-  // carries the client's round. Same three lines as the block in /mark above.
-  void round;
+  // Same stale-round guard as /mark (§4). An accusation aimed at the previous
+  // inning must not resolve against this one's marks — the leader it was
+  // pointed at is not necessarily the leader any more.
+  if (round !== game.round) {
+    return res.status(409).json({ error: 'stale round', round: game.round });
+  }
 
   // Resolved against state as it stands the moment this request arrives (§4).
   // Node handles requests in arrival order, so two accusations in the same tick

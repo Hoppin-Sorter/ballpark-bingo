@@ -126,7 +126,10 @@ function buildGrid() {
 function tap(index) {
   if (!isOpen()) return; // the server refuses too; this just avoids the round trip
   const next = !effectiveMarks()[index];
-  pending.set(index, { value: next, seq: ++seq, sending: false });
+  // Capture the round the tap was aimed at, not the round at send time. A
+  // queued mark that flushes after a rollover must still carry its original
+  // round so the server's stale-round guard can reject it.
+  pending.set(index, { value: next, seq: ++seq, sending: false, round: snap.round });
   paint();            // immediate, before the network knows anything
   sendMark(index);
 }
@@ -140,7 +143,7 @@ async function sendMark(index) {
     const r = await fetch('/mark', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ playerId, index, value: p.value, round: snap.round }),
+      body: JSON.stringify({ playerId, index, value: p.value, round: p.round }),
     });
     if (r.status === 404) return handleGone();
 

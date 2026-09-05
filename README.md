@@ -29,9 +29,9 @@ npm test           # bingo geometry + card generation
 |---|---|
 | `POST /join` | done |
 | `GET /state/:playerId?since=N` | done |
-| `POST /mark` | done, **minus the stale-round guard** |
+| `POST /mark` | done, with the stale-round guard |
 | `POST /next-inning` | done, refuses while `phase === OPEN` |
-| `POST /accuse` | done, **minus the stale-round guard** |
+| `POST /accuse` | done, with the stale-round guard |
 | `POST /force-resolve` | done, refuses outside `OPEN`, confirm step on the client |
 
 The phase machine:
@@ -65,9 +65,6 @@ correlated than random, so in play this tracks the inning. Widen the bands if
 
 ### Still to do
 
-- **The stale-round guard in `/mark` and `/accuse`** — deliberately unwritten,
-  marked in both places. The bug is live and reproducible: POST a `/mark` with an old `round`
-  while a newer round is open and it lands on the fresh card.
 - Per-square heat (step 11) is computed server-side but not rendered. The card
   frame's room-proximity band replaced it; running both would put two competing
   heat signals on one small screen.
