@@ -21,13 +21,13 @@ you push. Usually the right answer mid-game is to leave it broken and fix it aft
 
 ## What went out in this push
 
-- **The square pool** — 60 squares, mixed 15 near-certain / 34 medium / 11 rare,
+- **The square pool** — 59 squares, mixed 15 near-certain / 33 medium / 11 rare,
   matching §8. Nothing tied to a specific inning, since cards are dealt fresh every
   round and a seventh-inning-stretch square would be dead in eight rounds of nine.
   Nine squares that needed baseball literacy rather than eyes came out (balks,
   wild-pitch-or-passed-ball, sign-shaking, pitch counting), replaced by
   people-watching.
-- **A light personal layer for Chris's 36th** — eight squares, birthday and music,
+- **A light personal layer for Chris's 36th** — seven squares, birthday and music,
   including calling the artist on the stadium PA. A card averages three of them, so
   it reads personal without going dead when the table goes quiet.
 - **Two sets to sanity-check on the day.** The Citi Field ones — the Home Run Apple,

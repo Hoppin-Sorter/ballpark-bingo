@@ -17,7 +17,7 @@ npm test           # bingo geometry + card generation
 |---|---|
 | `server.js` | State, version counter, phase machine, all endpoints below |
 | `bingo.js` | Card geometry, `findBingo`, `dealCard` |
-| `squares.js` | The square pool — 60 squares, 15 certain / 34 medium / 11 rare |
+| `squares.js` | The square pool — 59 squares, 15 certain / 33 medium / 11 rare |
 | `public/index.html` | Markup only |
 | `public/styles.css` | Design tokens + the light Mets theme |
 | `public/app.js` | Grid, optimistic marking, poll loop, phase UI |

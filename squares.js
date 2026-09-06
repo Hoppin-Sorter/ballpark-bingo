@@ -78,7 +78,6 @@ const MEDIUM = [
   'Chris calls the artist on the PA before the chorus',
   'Someone names the PA artist and gets it wrong',
   'Happy Birthday gets sung and dies halfway through',
-  'Somebody tells Chris he looks good for 36',
   'A walk-up song nobody in your row recognises',
   'Two people disagree about who is on this track',
   'Someone in a Yankees hat',
