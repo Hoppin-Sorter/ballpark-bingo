@@ -21,12 +21,18 @@ you push. Usually the right answer mid-game is to leave it broken and fix it aft
 
 ## What went out in this push
 
-- **The real square pool** — 54 squares, mixed 14 near-certain / 30 medium / 10 rare,
+- **The square pool** — 60 squares, mixed 15 near-certain / 34 medium / 11 rare,
   matching §8. Nothing tied to a specific inning, since cards are dealt fresh every
   round and a seventh-inning-stretch square would be dead in eight rounds of nine.
-  A few are Citi Field specific: the Home Run Apple, the 7 Line Army, Mr. Met, planes
-  out of LaGuardia. **Sanity-check those on the day** — a square nobody can ever hit
-  is worse than no square.
+  Nine squares that needed baseball literacy rather than eyes came out (balks,
+  wild-pitch-or-passed-ball, sign-shaking, pitch counting), replaced by
+  people-watching.
+- **A light personal layer for Chris's 36th** — eight squares, birthday and music,
+  including calling the artist on the stadium PA. A card averages three of them, so
+  it reads personal without going dead when the table goes quiet.
+- **Two sets to sanity-check on the day.** The Citi Field ones — the Home Run Apple,
+  the 7 Line Army, Mr. Met, planes out of LaGuardia. And the Chris ones, which assume
+  he is actually at the game.
 - **Rules page cut from seven items to four.** Bingo and how to win, the accusation,
   the fact that nobody's score is visible, and that anyone can start an inning.
   Everything else people work out by playing.

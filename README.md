@@ -17,7 +17,7 @@ npm test           # bingo geometry + card generation
 |---|---|
 | `server.js` | State, version counter, phase machine, all endpoints below |
 | `bingo.js` | Card geometry, `findBingo`, `dealCard` |
-| `squares.js` | The square pool — 54 squares, 14 certain / 30 medium / 10 rare |
+| `squares.js` | The square pool — 60 squares, 15 certain / 34 medium / 11 rare |
 | `public/index.html` | Markup only |
 | `public/styles.css` | Design tokens + the light Mets theme |
 | `public/app.js` | Grid, optimistic marking, poll loop, phase UI |
@@ -72,6 +72,8 @@ correlated than random, so in play this tracks the inning. Widen the bands if
 - Sanity-check the Citi Field squares on the day — the Home Run Apple, the 7 Line
   Army, Mr. Met, planes out of LaGuardia. A square nobody can hit is worse than
   no square at all.
+- The Chris squares are one-off, written for his 36th, and assume he is at the
+  game. Pull them if he is not, or a handful of cards carry a dead square.
 
 ## Deploy
 
